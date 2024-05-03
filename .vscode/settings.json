@@ -1,0 +1,26 @@
+{
+    "files.associations": {
+        "python.h": "c",
+        "stdio.h": "c",
+        "stdbool.h": "c",
+        "data.h": "c",
+        "vector.h": "c",
+        "sdl.h": "c",
+        "stdlib.h": "c",
+        "config.h": "c",
+        "sdl_image.h": "c",
+        "main.h": "c",
+        "windows.h": "c",
+        "gui.h": "c",
+        "random": "c",
+        "zuc.h": "c",
+        "web.h": "c",
+        "typeinfo": "c",
+        "winsock2.h": "c",
+        "commdlg.h": "c",
+        "string.h": "c",
+        "pem.h": "c",
+        "limits.h": "c",
+        "sm9.h": "c"
+    }
+}

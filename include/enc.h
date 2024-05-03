@@ -1,0 +1,50 @@
+#ifndef _ENC_H
+#define _ENC_H
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <gmssl/zuc.h>
+#include <gmssl/sm9.h>
+
+#include "data.h"
+
+#define TO32(size) (((size) + 3) & ~3) // 将不关于4字节对齐的数字转化为关于4字节对齐的数字
+
+/**
+ * \brief ZUC加密函数
+ * \param msg 需要加密的数据
+ * \param out 加密后的数据
+ * \param key 密钥
+ * \param iv  初始化向量
+ */
+bool zucEnc(const data *msg, data **out, uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_KEY_SIZE]);
+
+/**
+ * \brief ZUC解密函数
+ * \param msg 需要解密的数据
+ * \param out 加密后的数据
+ * \param key 密钥
+ * \param iv  初始化向量
+ */
+bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const uint8_t iv[ZUC_KEY_SIZE]);
+
+// /**
+//  * \brief 获取一个RSA密钥对，并保存为PEM格式
+//  * \param pri_key 私钥
+//  * \param pub_key 公钥
+//  * \retrun 是否成功
+// */
+// bool getRSAKeyPair(data **pri_key, data **pub_key);
+
+// /**
+//  * \brief 从内存中读取PEM格式的私钥
+// */
+// RSA *readPrivateKeyFromMem(const char *pri_key);
+
+// /**
+//  * \brief 从内存中读取PEM格式的公钥
+// */
+// RSA *readPublicKeyFromMem(const char *pub_key);
+
+#endif
