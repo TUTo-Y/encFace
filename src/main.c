@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     DEBUG("正在从服务端获取信息...\n");
     if (get_face_info(Global.face) == false)
     {
-        ERR("获取人脸数据失败\n");
+        ERR("从服务器获取人脸数据失败\n");
         return -1;
     }
 
@@ -125,6 +125,7 @@ bool select_image(char *path, size_t size)
 
     if (GetOpenFileName(&ofn) == TRUE)
     {
+        // 检查文件是否存在
         hf = CreateFile(ofn.lpstrFile,
                         GENERIC_READ,
                         0,
@@ -132,6 +133,7 @@ bool select_image(char *path, size_t size)
                         OPEN_EXISTING,
                         FILE_ATTRIBUTE_NORMAL,
                         (HANDLE)NULL);
+        // 文件存在
         if (hf != INVALID_HANDLE_VALUE)
         {
             CloseHandle(hf);

@@ -48,6 +48,7 @@ bool addData(list **head, void *data, size_t size, bool isCopy)
  */
 bool getData(list **head, void **data, size_t *size)
 {
+    // 初始化
     if (data)
         *data = NULL;
     if (size)
@@ -55,14 +56,17 @@ bool getData(list **head, void **data, size_t *size)
     if ((!head) || (*head == NULL))
         return false;
 
+    // 取出节点
     list *temp = *head;
     *head = (*head)->next;
 
+    // 取出数据
     if (data)
         *data = temp->data;
     if (size)
         *size = temp->size;
 
+    // 释放节点
     free(temp);
     return true;
 }
@@ -76,11 +80,13 @@ void freeList(list **head, void (*freedom)(void *data))
     if (!head)
         return;
 
+    // 释放链表
     list *temp = NULL;
     while (*head)
     {
         temp = *head;
         *head = (*head)->next;
+        // 释放数据
         if (temp->data && freedom)
             freedom(temp->data);
         free(temp);
@@ -154,6 +160,7 @@ bool Realloc(data *d, const void *s, size_t size)
         return false;
     }
 
+    // 添加数据
     d->data = new_data;
     memcpy(d->data + d->size, s, size);
     d->size += size;

@@ -11,6 +11,7 @@ void play()
     int mouseX = 0, mouseY = 0;
     SDL_FPoint mouse = {0};
     Uint32 frame_start, frame_time;
+
     while (1)
     {
         // 设置帧开始时间
@@ -19,7 +20,8 @@ void play()
         // 事件处理
         while (SDL_PollEvent(&event))
         {
-            FRAME_DURATION = 0; // 及时刷新
+            FRAME_DURATION = 0; // 设置间隔时间0，及时刷新
+
             switch (event.type)
             {
             case SDL_QUIT: // 退出事件
@@ -32,6 +34,8 @@ void play()
                 mouseY = event.motion.y;
                 mouse.x = (float)mouseX;
                 mouse.y = (float)mouseY;
+
+                // 鼠标按下状态下需要移动图片
                 if (mflag)
                 {
                     // 移动图片
@@ -41,24 +45,33 @@ void play()
                 break;
 
             case SDL_MOUSEBUTTONDOWN: // 按下事件
-                mflag = 1;
+                if (event.button.button == SDL_BUTTON_LEFT)
+                {
+                    mflag = 1;
+                }
                 break;
 
             case SDL_MOUSEBUTTONUP: // 弹起事件
-                mflag = 0;
+                if (event.button.button == SDL_BUTTON_LEFT)
+                {
+                    mflag = 0;
+                }
                 break;
 
-            case SDL_MOUSEWHEEL: // 滚轮事件
-                float scale = 0.15f * event.wheel.y;
-                if (scale + Global.scale2 > 0.1f && scale + Global.scale2 < 10.0f)
+            case SDL_MOUSEWHEEL:                                                   // 滚轮事件
+                float scale = 0.15f * event.wheel.y;                               // 缩放比例
+                if (scale + Global.scale2 > 0.1f && scale + Global.scale2 < 10.0f) // 缩放比例限制
                 {
                     float w = Global.surfaceRect.w;
                     float h = Global.surfaceRect.h;
+
                     // 设置缩放比例
                     Global.scale2 += scale;
+
                     // 重新设置图片区域
                     Global.surfaceRect.w = Global.surface->w * Global.scale * Global.scale2;
                     Global.surfaceRect.h = Global.surface->h * Global.scale * Global.scale2;
+
                     // 从鼠标位置向周围缩放
                     Global.surfaceRect.x -= (((float)mouse.x - Global.surfaceRect.x) / w) * (Global.surfaceRect.w - w);
                     Global.surfaceRect.y -= (((float)mouse.y - Global.surfaceRect.y) / h) * (Global.surfaceRect.h - h);
@@ -71,7 +84,7 @@ void play()
             }
         }
 
-        // 渲染背景
+        // 清空Renderer
         SDL_SetRenderDrawColor(Global.renderer, 255, 255, 255, 255);
         SDL_RenderClear(Global.renderer);
 
@@ -84,21 +97,26 @@ void play()
         list *nodeS = Global.faceSurface;
         while (node)
         {
-            SDL_FRect rect = {// 选择框的实际位置
-                              .x = Global.surfaceRect.x + ((vector *)node->data)->rect.x * Global.scale * Global.scale2,
-                              .y = Global.surfaceRect.y + ((vector *)node->data)->rect.y * Global.scale * Global.scale2,
-                              .w = ((vector *)node->data)->rect.w * Global.scale * Global.scale2,
-                              .h = ((vector *)node->data)->rect.h * Global.scale * Global.scale2};
-            // 根据人物信息设置颜色
+            // 选择框的实际位置
+            SDL_FRect rect = {
+                .x = Global.surfaceRect.x + ((vector *)node->data)->rect.x * Global.scale * Global.scale2,
+                .y = Global.surfaceRect.y + ((vector *)node->data)->rect.y * Global.scale * Global.scale2,
+                .w = ((vector *)node->data)->rect.w * Global.scale * Global.scale2,
+                .h = ((vector *)node->data)->rect.h * Global.scale * Global.scale2};
+
+            // 根据人物是否存在设置对应的颜色
             if (((vector *)node->data)->flag == HV)
                 SDL_SetRenderDrawColor(Global.renderer, 0, 255, 0, 255);
             else if (((vector *)node->data)->flag == NO || ((vector *)node->data)->flag == NU)
                 SDL_SetRenderDrawColor(Global.renderer, 255, 0, 0, 255);
+
+            // 渲染选择框
             SDL_RenderDrawRectF(Global.renderer, &rect);
 
-            // 渲染文本框
+            // 如果鼠标位置在选择框内，则渲染文本框
             if (SDL_PointInFRect(&mouse, &rect))
             {
+                // 设置文本框的位置
                 rect.x += rect.w + 5;
                 rect.w *= 1.5f;
                 if (((vector *)node->data)->flag == HV)
@@ -106,6 +124,8 @@ void play()
                 else
                     rect.y += rect.h / 3.0f;
                 rect.h = (rect.w / (float)(((SDL_Surface *)nodeS->data)->w)) * (float)((SDL_Surface *)nodeS->data)->h;
+
+                // 渲染
                 SDL_RenderCopyF(Global.renderer, (SDL_Texture *)nodeT->data, NULL, &rect);
             }
 
@@ -131,7 +151,7 @@ void play()
  * \param w 图片宽度
  * \param h 图片高度
  */
-void resize(SDL_Rect *total, SDL_FRect *dRect, int w, int h)
+void resize(const SDL_Rect *total, SDL_FRect *dRect, int w, int h)
 {
     if ((float)w / (float)h > (float)total->w / (float)total->h)
     {
@@ -169,11 +189,12 @@ bool render_info()
     SDL_Color colorHV = {0, 255, 0, 255};
     SDL_Color colorNO = {255, 0, 0, 255};
     SDL_Color colorBK = {0, 0, 0, 0};
-    // list -> tmp
+
+    // 渲染名片到tmp链表
     list *node = Global.face;
     while (node)
     {
-        if (((vector *)node->data)->flag == HV)
+        if (((vector *)node->data)->flag == HV) // 人物存在
         {
             // 渲染人物姓名
             snprintf(text, 256, "姓名:%s", ((vector *)node->data)->info.name);
@@ -199,14 +220,19 @@ bool render_info()
             }
             SDL_Surface *surface3 = TTF_RenderUTF8_Blended(font, text, colorHV);
 
-            // 合并Surface
+            // 创建人物信息框
             SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, MAX_OF_THREE(surface1->w, surface2->w, surface3->w), surface1->h + surface2->h + surface3->h + 20, 32, SDL_PIXELFORMAT_RGBA32);
 
-            // 设置背景色
-            SDL_FillRect(surface, NULL, SDL_MapRGBA(surface->format, 128, 128, 255, 64)); // 这里设置的是半透明的白色背景
+            // 用浅透明的淡蓝色去填充背景
+            SDL_FillRect(surface, NULL, SDL_MapRGBA(surface->format, 128, 128, 255, 64));
 
+            // 将surface1~3渲染到surface
+            SDL_Rect rect = {0};
             SDL_BlitSurface(surface1, NULL, surface, NULL);
-            SDL_Rect rect = {0, surface1->h + 10, surface2->w, surface2->h};
+            rect.x = 0;
+            rect.y = surface1->h + 10;
+            rect.w = surface2->w;
+            rect.h = surface2->h;
             SDL_BlitSurface(surface2, NULL, surface, &rect);
             rect.x = 0;
             rect.y = surface1->h + surface2->h + 20;
@@ -222,7 +248,7 @@ bool render_info()
             SDL_FreeSurface(surface2);
             SDL_FreeSurface(surface3);
         }
-        else
+        else // 人物不存在
         {
             // 人物要显示的信息信息
             strcpy(text, "no info");
@@ -232,15 +258,15 @@ bool render_info()
         node = node->next;
     }
 
-    // tmp -> texture
+    // 将tmp链表的surface转换成texture
     node = tmp;
     while (node)
     {
-        addData(&Global.faceTexture, SDL_CreateTextureFromSurface(Global.renderer, node->data), 0, false);
+        addData(&Global.faceTexture, SDL_CreateTextureFromSurface(Global.renderer, (SDL_Surface *)node->data), 0, false);
         node = node->next;
     }
 
-    // tmp -> surface
+    // 将tmp链表的surface放入surface ( 这一步用于保持正方向放入链表 )
     while (tmp)
     {
         void *data = NULL;

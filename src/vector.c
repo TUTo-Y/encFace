@@ -27,9 +27,11 @@ bool get_face_vector(const char *image, list **head)
         CHECK(ret != -1, "无法创建tmp目录\n");
     }
 
-    // 删除旧文件
+    // 删除SAVE文件
     ret = remove(SAVE_FILE);
     CHECK(ret == 0 || ENOENT == errno, "无法删除旧文件，请检查是否正在使用\n");
+
+    // 删除BOX文件
     ret = remove(BOX_FILE);
     CHECK(ret == 0 || ENOENT == errno, "无法删除旧文件，请检查是否正在使用\n");
 
@@ -44,12 +46,14 @@ bool get_face_vector(const char *image, list **head)
     file = fopen(SAVE_FILE, "rb");
     CHECK(file, "读取save文件失败\n");
 
-    // 检测识别结果并读取人物count
+    // 检测识别结果
     char result[0x10] = {0};
     fread(result, 1, SIG_SIZE, file); // 读取sig
     CHECK(strncmp(result, NOT_FACE, SIG_SIZE) || strncmp(result, NOT_IMAGE, SIG_SIZE) || strncmp(result, NOT_FILE, SIG_SIZE),
           "读取到错误解析结果: %s\n", result);
-    fread(&count, 1, sizeof(count), file); // 读取count
+    
+    // 读取count
+    fread(&count, 1, sizeof(count), file);
     CHECK(count > 0, "未检测到人脸\n");
     fclose(file);
 
@@ -61,33 +65,34 @@ bool get_face_vector(const char *image, list **head)
     for (int i = 0; i < count; i++)
     {
         memset(&vec, 0, sizeof(vec));
-        // gui test测试
-        // vec.flag = rand() % 3;
-        // strcpy(vec.info.name, "郑德泓666");
-        // vec.info.age = rand() % 100;
-        // vec.info.sex = rand() % 3;
 
-        // 读取位置
+        // 读取人物框位置
         fread(&vec.rect, 1, sizeof(vec.rect), boxfile);
-        // 修改位置为SDL_FRect
         vec.rect.w -= vec.rect.x;
         vec.rect.h -= vec.rect.y;
 
-        // 读取特征向量
+        // 打开存放加密后特征向量的文件
         sprintf(cmd, "%s%d", VER_FILE, i);
         file = fopen(cmd, "rb");
         CHECK(file, "无法读取加密的特征向量文件\n");
+
+        // 获取特征向量大小
         fseek(file, 0, SEEK_END);
         size = ftell(file);
         fseek(file, 0, SEEK_SET);
+
+        // 读取特征向量
         vec.v = Malloc(size);
         CHECK(vec.v, "malloc failed\n");
         fread(vec.v->data, 1, size, file);
+
+        // 关闭文件
         fclose(file);
         remove(cmd);
 
         // 写入链表
-        CHECK(addData(head, &vec, sizeof(vec), true) == true, "添加链表失败\n");
+        ret = addData(head, &vec, sizeof(vec), true);
+        CHECK(ret == true, "添加链表失败\n");
     }
     fclose(boxfile);
 

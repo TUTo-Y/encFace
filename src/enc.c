@@ -32,7 +32,7 @@ bool zucEnc(const data *msg, data **out, uint8_t key[ZUC_KEY_SIZE], uint8_t iv[Z
     zuc_generate_keystream(&state, k_n, k);
 
     // 加密数据
-    *out = Malloc(msg->size); // chunk关于8字节对齐
+    *out = Malloc(msg->size); // chunk关于8字节对齐, 所以无需对齐手动msg的data
     for (int i = 0; i < k_n; i++)
         ((ZUC_UINT32 *)(*out)->data)[i] = ((ZUC_UINT32 *)msg->data)[i] ^ k[i];
 
@@ -64,9 +64,12 @@ bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const 
     zuc_generate_keystream(&state, k_n, k);
 
     // 解密数据
-    *out = Malloc(msg->size);
+    *out = Malloc(msg->size); // chunk关于8字节对齐, 所以无需对齐手动msg的data
     for (int i = 0; i < k_n; i++)
         ((ZUC_UINT32 *)(*out)->data)[i] = ((ZUC_UINT32 *)msg->data)[i] ^ k[i];
+    
+    // 释放资源
+    free(k);
     return true;
 }
 

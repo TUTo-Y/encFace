@@ -12,6 +12,11 @@
 #include "main.h"
 #include "vector.h"
 
+
+// 获取最大长度，用于处理人物名片
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MAX_OF_THREE(a, b, c) (MAX(MAX(a, b), c))
+
 #define FPS 60              // 刷新率
 #define FPS_MS (1000 / FPS) // 每一帧的持续时间（毫秒）
 
@@ -27,7 +32,7 @@ void play();
  * \param w 图片宽度
  * \param h 图片高度
  */
-void resize(SDL_Rect *total, SDL_FRect *dRect, int w, int h);
+void resize(const SDL_Rect *total, SDL_FRect *dRect, int w, int h);
 
 /**
  * \brief 将用户信息渲染成名片

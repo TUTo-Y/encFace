@@ -45,7 +45,7 @@ bool get_face_info(list *face)
     ret = send(sockfd, (char *)USER_ID, id_size, 0);
     CHECK(ret != SOCKET_ERROR, "发送身份ID失败 : %d\n", WSAGetLastError());
 
-    // 客户端发送需要验证的人脸总数量(size_t)
+    // 发送需要验证的人脸总数量(size_t)
     count = listLength(face);
     ret = send(sockfd, (char *)&count, sizeof(size_t), 0);
     CHECK(ret != SOCKET_ERROR, "发送人脸数量失败 : %d\n", WSAGetLastError());
@@ -71,21 +71,21 @@ bool get_face_info(list *face)
         sm9Out = Malloc(SM9_MAX_CIPHERTEXT_SIZE);
         sm9_encrypt(&master, USER_ID, strlen(USER_ID), k, sizeof(k), sm9Out->data, &sm9Out->size);
 
-        // 经过sm9加密的ZUC密钥和特征向量的长度(size_t)
+        // 发送经过sm9加密的ZUC密钥和特征向量的长度(size_t)
         ret = send(sockfd, (char *)&sm9Out->size, sizeof(size_t), 0);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 经过sm9加密的ZUC密钥长度失败 : %d\n", count + 1, WSAGetLastError());
         DEBUG("发送经过sm9加密的ZUC密钥长度 : %d 字节\n", sm9Out->size);
 
-        // 经过sm9加密的ZUC密钥和特征向量(char*)
+        // 发送经过sm9加密的ZUC密钥和特征向量(char*)
         ret = send(sockfd, (char *)sm9Out->data, sm9Out->size, 0);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 经过sm9加密的ZUC密钥失败 : %d\n", count + 1, WSAGetLastError());
 
-        // 经过ZUC加密后数据的长度(size_t)
+        // 发送经过ZUC加密后数据的长度(size_t)
         ret = send(sockfd, (char *)&zucOut->size, sizeof(size_t), 0);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 发送ZUC加密后数据的长度失败 : %d\n", count + 1, WSAGetLastError());
         DEBUG("发送ZUC加密后数据的长度 : %d 字节\n", zucOut->size);
 
-        // 经过ZUC加密后数据的数据(char*)
+        // 发送经过ZUC加密后数据的数据(char*)
         ret = send(sockfd, (char *)zucOut->data, zucOut->size, 0);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 发送ZUC加密后数据失败 : %d\n", count + 1, WSAGetLastError());
 
@@ -100,13 +100,18 @@ bool get_face_info(list *face)
     }
 
     // 接受服务器回馈
+#ifdef _DEBUG
     count = 0;
+#endif
     node = face;
     while (node)
     {
+        // 接受服务器回馈人物存在标志
         DEBUG("正在接受第%d个人脸数据\n", count + 1);
         ret = recv(sockfd, (char *)&(((vector *)node->data)->flag), sizeof(int), 0);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 接受服务器回馈flag失败 : %d\n", count + 1, WSAGetLastError());
+
+        // 如果人物存在, 则接受人物信息
         if (((vector *)node->data)->flag == HV)
         {
             ret = recv(sockfd, (char *)&(((vector *)node->data)->info), sizeof(msg), 0);
@@ -117,7 +122,9 @@ bool get_face_info(list *face)
             DEBUG("性别id: %d\n\n", ((vector *)node->data)->info.sex);
         }
 
+#ifdef _DEBUG
         count++;
+#endif
         node = node->next;
     }
 
