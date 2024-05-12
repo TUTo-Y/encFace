@@ -2,10 +2,11 @@ import os
 import torch
 import struct
 import socket
+import numpy as np
+import cv2
 
 from seal import *
-from PIL import Image
-from phe import paillier
+from PIL import Image, ImageOps
 from facenet_pytorch import MTCNN, InceptionResnetV1
 
 public_key_file = "BGV_public_key"
@@ -23,7 +24,8 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
     file_len = struct.unpack('Q', s.recv(8))[0]
     
     # 接受文件名
-    file = s.recv(file_len).decode('utf-8')
+    print("接收文件名")
+    file = s.recv(file_len).decode('utf-16')
 
     # 检查文件是否存在
     if not os.path.exists(file):
@@ -32,14 +34,20 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
     
     # 读取Image
     img = Image.open(file).convert('RGB')  # 将图像转换为RGB格式
-    # 检查img是否有效
     if img is None:
         s.send(struct.pack('Q', MSG_FACE_END))
         return None
     
+    # 对图片预处理
+    image = ImageOps.autocontrast(img)  # 自动对比度
+    image = ImageOps.equalize(image)    # 直方图均衡化
+
+    # 将PIL图像转换为OpenCV图像
+    # image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
     # 使用MTCNN检测人脸
-    boxes, _ = mtcnn.detect(img)
-    # 如果没有检测到人脸，返回None
+    boxes, _ = mtcnn.detect(image)
+    
     if boxes is None:
         s.send(struct.pack('Q', MSG_FACE_END))
         return None
@@ -47,16 +55,23 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
     # 向文件中写入特征向量的大小、box的数值和特征向量的值
     count = 0
     for box in boxes:
-        print("正在识别第" + str(count+1) + "个人脸")
         # 剪切人脸图像
         face = img.crop(box)
+
         # 检查face是否有效
-        if face is None or face.size[0] == 0 or face.size[1] == 0:
+        if face is None or face.size[0] <= 10 or face.size[1] <= 10:
             continue
-        face_tensor = mtcnn(face)
+
+        try:
+            face_tensor = mtcnn(face)
+        except:
+            continue
+
         # 检查face_tensor是否有效
         if face_tensor is None:
             continue
+        
+        print("正在处理第" + str(count+1) + "个人脸")
         
         # 发送人脸消息
         s.send(struct.pack('Q', MSG_FACE))
@@ -79,7 +94,6 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
             x_cipher.save(vf.name)
         f = open("tmp\\tmp", "rb")
         x_cipher_bytes = f.read()
-        # os.remove("tmp")
 
         # 发送数据大小
         s.send(struct.pack('Q', len(x_cipher_bytes)))
@@ -91,6 +105,8 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
             
     s.send(struct.pack('Q', MSG_FACE_END))
     print('识别完成')
+    if "tmp\\tmp" in os.listdir("tmp"):
+        os.remove("tmp\\tmp")
 
 def main():
     

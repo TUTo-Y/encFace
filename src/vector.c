@@ -6,7 +6,7 @@
  * \param head 链表头指针
  * \return 是否成功提取特征向量
  */
-bool get_face_vector(const char *image, list **head)
+bool get_face_vector(const wchar_t *image, list **head)
 {
     vector vec = {0};
     size_t m = MSG_GET_FACE_VECTOR;
@@ -18,7 +18,7 @@ bool get_face_vector(const char *image, list **head)
     CHECK(ret != SOCKET_ERROR, "发送请求失败 : %d\n", WSAGetLastError());
 
     // 向facenet服务器发送文件名长度
-    size = strlen(image);
+    size = wcslen(image) * sizeof(wchar_t);
     ret = send(Global.sock_f, (char*)&size, sizeof(size), 0);
     CHECK(ret != SOCKET_ERROR, "发送文件名长度 : %d\n", WSAGetLastError());
 

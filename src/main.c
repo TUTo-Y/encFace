@@ -102,15 +102,17 @@ error:
     // 释放wsaData
     WSACleanup();
 
+    // 退出
+    DEB(system("pause"));
     return 0;
 }
 
 /**
  * \brief 调用WindowsAPI选择图片
  */
-bool select_image(char *path, size_t size)
+bool select_image(wchar_t *path, size_t size)
 {
-    OPENFILENAME ofn;
+    OPENFILENAMEW ofn;
     HWND hwnd = NULL;
     HANDLE hf;
 
@@ -118,19 +120,19 @@ bool select_image(char *path, size_t size)
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = hwnd;
     ofn.lpstrFile = path;
-    ofn.lpstrFile[0] = '\0';
+    ofn.lpstrFile[0] = L'\0';
     ofn.nMaxFile = size;
-    ofn.lpstrFilter = "Image\0*.BMP;*.GIF;*.JPG;*.JPEG;*.LBM;*.PCX;*.PNG;*.PNM;*.SVG;*.TGA;*.TIFF;*.WEBP;*.XCF;*.XPM;*.XV\0\0";
+    ofn.lpstrFilter = L"Image\0*.BMP;*.GIF;*.JPG;*.JPEG;*.LBM;*.PCX;*.PNG;*.PNM;*.SVG;*.TGA;*.TIFF;*.WEBP;*.XCF;*.XPM;*.XV\0\0";
     ofn.nFilterIndex = 1;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
     ofn.lpstrInitialDir = NULL;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-    if (GetOpenFileName(&ofn) == TRUE)
+    if (GetOpenFileNameW(&ofn) == TRUE)
     {
         // 检查文件是否存在
-        hf = CreateFile(ofn.lpstrFile,
+        hf = CreateFileW(ofn.lpstrFile,
                         GENERIC_READ,
                         0,
                         (LPSECURITY_ATTRIBUTES)NULL,
@@ -152,8 +154,9 @@ bool select_image(char *path, size_t size)
  */
 bool load_face()
 {
-    char path[MAX_PATH] = {0};
+    wchar_t path[MAX_PATH] = {0};
     int ret = 0;
+    char *buffer = NULL;
 
     // 选择图片
     ret = select_image(path, MAX_PATH);
@@ -173,8 +176,23 @@ bool load_face()
         CLEAR_FLAG(image_is_choice);
     }
 
+    // 使用_wfopen函数打开文件
+    FILE *fp = _wfopen(path, L"rb");
+    CHECK(fp, "打开图片失败 : %s\n", path);
+
+    // 获取文件大小
+    fseek(fp, 0, SEEK_END);
+    long fsize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    // 读取整个文件到内存
+    buffer = malloc(fsize + 1);
+    fread(buffer, fsize, 1, fp);
+    fclose(fp);
+
     // 读取图片Surface
-    Global.surface = IMG_Load(path);
+    Global.surface = IMG_Load_RW(SDL_RWFromMem(buffer, fsize), 1); // 第二个参数为1表示在读取后关闭SDL_RWops
+    free(buffer);
     CHECK(Global.surface, "读取图片失败 : %s\n", IMG_GetError());
 
     // 读取图片Texture

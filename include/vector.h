@@ -26,7 +26,7 @@
  * \param head 链表头指针
  * \return 是否成功提取特征向量
  */
-bool get_face_vector(const char *image, list **head);
+bool get_face_vector(const wchar_t *image, list **head);
 
 /**
  * \brief 释放vec数据

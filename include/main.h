@@ -26,7 +26,7 @@
 /**
  * \brief 调用WindowsAPI选择图片
  */
-bool select_image(char *path, size_t size);
+bool select_image(wchar_t *path, size_t size);
 
 /**
  * \brief 加载人脸
