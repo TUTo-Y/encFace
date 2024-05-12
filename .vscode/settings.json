@@ -21,6 +21,10 @@
         "string.h": "c",
         "pem.h": "c",
         "limits.h": "c",
-        "sm9.h": "c"
+        "sm9.h": "c",
+        "enc.h": "c",
+        "pthread.h": "c",
+        "unistd.h": "c",
+        "sdl_ttf.h": "c"
     }
 }

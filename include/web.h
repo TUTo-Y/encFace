@@ -12,6 +12,15 @@
 #include "data.h"
 #include "vector.h"
 
+#define MSG_TYPE_SIZE sizeof(size_t) // 消息类型长度
+#define MSG_CLOSE 0                  // 关闭连接消息
+#define MSG_SUCESS 1                 // 处理成功
+#define MSG_GET_FACE_VECTOR 2        // 请求获取人脸特征向量
+#define MSG_GET_FACE_INFO 3          // 请求获取人脸信息
+
+#define MSG_FACE 4     // 人脸数据
+#define MSG_FACE_END 5 // 结束
+
 /**
  * 客户端上传特征向量的数据格式:
  *
@@ -36,6 +45,28 @@
  * 第二个角色的数据(msg) //不存在则跳过
  * ...
  */
+
+/**
+ * \brief 建立与远程服务器的连接
+ * \return 是否成功
+ */
+bool connect_s();
+
+/**
+ * \brief 启动facenet服务器并与facenet服务器的连接
+ * \return 是否成功
+ */
+bool connect_f();
+
+/**
+ * \brief 关闭与远程服务器的连接
+ */
+void close_s();
+
+/**
+ * \brief 关闭与facenet服务器的连接
+ */
+void close_f();
 
 /**
  * \brief 通过人脸特征向量获取人脸信息

@@ -32,22 +32,4 @@ bool zucEnc(const data *msg, data **out, uint8_t key[ZUC_KEY_SIZE], uint8_t iv[Z
  */
 bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const uint8_t iv[ZUC_KEY_SIZE]);
 
-// /**
-//  * \brief 获取一个RSA密钥对，并保存为PEM格式
-//  * \param pri_key 私钥
-//  * \param pub_key 公钥
-//  * \retrun 是否成功
-// */
-// bool getRSAKeyPair(data **pri_key, data **pub_key);
-
-// /**
-//  * \brief 从内存中读取PEM格式的私钥
-// */
-// RSA *readPrivateKeyFromMem(const char *pri_key);
-
-// /**
-//  * \brief 从内存中读取PEM格式的公钥
-// */
-// RSA *readPublicKeyFromMem(const char *pub_key);
-
 #endif

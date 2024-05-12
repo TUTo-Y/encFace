@@ -9,105 +9,62 @@
 bool get_face_vector(const char *image, list **head)
 {
     vector vec = {0};
-    FILE *file = NULL;
-    FILE *boxfile = NULL;
-    int count = 0;
+    size_t m = MSG_GET_FACE_VECTOR;
     size_t size = 0;
     int ret = 0;
-    char cmd[PATH_MAX + 0x10] = {0};
 
-    // 检查参数
-    CHECK(image && head, "提取特征向量时传参错误\n");
+    // 向facenet服务器发送请求
+    ret = send(Global.sock_f, (char *)&m, MSG_TYPE_SIZE, 0);
+    CHECK(ret != SOCKET_ERROR, "发送请求失败 : %d\n", WSAGetLastError());
 
-    // 检测是否存在tmp目录
-    if (access(TMP, F_OK) == -1)
+    // 向facenet服务器发送文件名长度
+    size = strlen(image);
+    ret = send(Global.sock_f, (char*)&size, sizeof(size), 0);
+    CHECK(ret != SOCKET_ERROR, "发送文件名长度 : %d\n", WSAGetLastError());
+
+    // 向facenet服务器发送文件名
+    ret = send(Global.sock_f, (char*)image, size, 0);
+    CHECK(ret != SOCKET_ERROR, "发送文件名失败 : %d\n", WSAGetLastError());
+
+    // facenet返回检测结果
+    while (true)
     {
-        // 如果文件夹不存在，创建它
-        ret = mkdir(TMP);
-        CHECK(ret != -1, "无法创建tmp目录\n");
-    }
+        // 接受请求
+        ret = recv(Global.sock_f, (char *)&m, MSG_TYPE_SIZE, 0);
+        CHECK(ret != SOCKET_ERROR, "接收请求失败 : %d\n", WSAGetLastError());
 
-    // 删除SAVE文件
-    ret = remove(SAVE_FILE);
-    CHECK(ret == 0 || ENOENT == errno, "无法删除旧文件，请检查是否正在使用\n");
+        // 检测是否结束
+        if (m != MSG_FACE)
+            break;
 
-    // 删除BOX文件
-    ret = remove(BOX_FILE);
-    CHECK(ret == 0 || ENOENT == errno, "无法删除旧文件，请检查是否正在使用\n");
-
-    // 创建命令
-    sprintf(cmd, "python face.py \"%s\"", image);
-
-    // 执行
-    ret = system(cmd);
-    CHECK(ret == 0, "无法执行命令\n"); // 检查是否执行成功
-
-    // 读取识别数据
-    file = fopen(SAVE_FILE, "rb");
-    CHECK(file, "读取save文件失败\n");
-
-    // 检测识别结果
-    char result[0x10] = {0};
-    fread(result, 1, SIG_SIZE, file); // 读取sig
-    CHECK(strncmp(result, NOT_FACE, SIG_SIZE) || strncmp(result, NOT_IMAGE, SIG_SIZE) || strncmp(result, NOT_FILE, SIG_SIZE),
-          "读取到错误解析结果: %s\n", result);
-    
-    // 读取count
-    fread(&count, 1, sizeof(count), file);
-    CHECK(count > 0, "未检测到人脸\n");
-    fclose(file);
-
-    // 打开box文件
-    boxfile = fopen(BOX_FILE, "rb");
-    CHECK(boxfile, "无法读取box文件\n");
-
-    // 读取box文件和vector文件
-    for (int i = 0; i < count; i++)
-    {
         memset(&vec, 0, sizeof(vec));
 
-        // 读取人物框位置
-        fread(&vec.rect, 1, sizeof(vec.rect), boxfile);
+        // 人物框位置
+        ret = recv(Global.sock_f, (char *)&vec.rect, sizeof(vec.rect), 0);
+        CHECK(ret != SOCKET_ERROR, "接收人物框位置失败 : %d\n", WSAGetLastError());
         vec.rect.w -= vec.rect.x;
         vec.rect.h -= vec.rect.y;
 
-        // 打开存放加密后特征向量的文件
-        sprintf(cmd, "%s%d", VER_FILE, i);
-        file = fopen(cmd, "rb");
-        CHECK(file, "无法读取加密的特征向量文件\n");
+        // 返回特征向量大小
+        ret = recv(Global.sock_f, (char *)&size, sizeof(size), 0);
+        CHECK(ret != SOCKET_ERROR, "接收特征向量大小失败 : %d\n", WSAGetLastError());
 
-        // 获取特征向量大小
-        fseek(file, 0, SEEK_END);
-        size = ftell(file);
-        fseek(file, 0, SEEK_SET);
+        // 创建特征向量空间
+        vec.v = (data *)Malloc(size);
+        CHECK(vec.v, "内存分配失败\n");
 
-        // 读取特征向量
-        vec.v = Malloc(size);
-        CHECK(vec.v, "malloc failed\n");
-        fread(vec.v->data, 1, size, file);
+        // 返回特征向量数据
+        ret = recv(Global.sock_f, (char *)vec.v->data, size, 0);
+        CHECK(ret != SOCKET_ERROR, "接收特征向量数据失败 : %d\n", WSAGetLastError());
 
-        // 关闭文件
-        fclose(file);
-        remove(cmd);
-
-        // 写入链表
+        // 添加到链表
         ret = addData(head, &vec, sizeof(vec), true);
-        CHECK(ret == true, "添加链表失败\n");
+        CHECK(ret == true, "添加数据失败\n");
     }
-    fclose(boxfile);
 
-    remove(SAVE_FILE);
-    remove(BOX_FILE);
     return true;
-
 error:
-    if (file)
-        fclose(file);
-    if (boxfile)
-        fclose(boxfile);
     freeList(head, (void (*)(void *))freeVector);
-    remove(SAVE_FILE);
-    remove(BOX_FILE);
     return false;
 }
 

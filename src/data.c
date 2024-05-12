@@ -1,10 +1,13 @@
 #include "data.h"
 
+// 全局数据
+struct _Global Global = {0};
+
 /**
  * \brief 向链表中添加一个数据
  * \param head 链表头指针
  * \param data 数据指针
- * \param size 数据大小
+ * \param size 数据大小(如果isCopy为true则必须提供size)
  * \param isCopy 是否复制数据
  */
 bool addData(list **head, void *data, size_t size, bool isCopy)
@@ -43,16 +46,10 @@ bool addData(list **head, void *data, size_t size, bool isCopy)
  * \brief 从链表中取出一个数据
  * \param head 链表头指针
  * \param data 数据指针
- * \param size 数据大小(可省略)
  * \return 是否成功取出数据
  */
-bool getData(list **head, void **data, size_t *size)
+bool getData(list **head, void **data)
 {
-    // 初始化
-    if (data)
-        *data = NULL;
-    if (size)
-        *size = 0;
     if ((!head) || (*head == NULL))
         return false;
 
@@ -63,8 +60,8 @@ bool getData(list **head, void **data, size_t *size)
     // 取出数据
     if (data)
         *data = temp->data;
-    if (size)
-        *size = temp->size;
+    else
+        *data = NULL;
 
     // 释放节点
     free(temp);
@@ -74,8 +71,9 @@ bool getData(list **head, void **data, size_t *size)
 /**
  * \brief 释放链表
  * \param head 链表头指针
+ * \param Free 释放数据的函数指针
  */
-void freeList(list **head, void (*freedom)(void *data))
+void freeList(list **head, void (*freedom)(void *ptr))
 {
     if (!head)
         return;
@@ -116,6 +114,9 @@ size_t listLength(list *head)
 data *Malloc(size_t size)
 {
     data *temp = (data *)malloc(sizeof(data));
+    if (temp == NULL)
+        return NULL;
+
     if (temp)
     {
         temp->size = size;

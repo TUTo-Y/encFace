@@ -6,11 +6,22 @@
 void play()
 {
     Uint32 FRAME_DURATION = FPS_MS; // 每一帧的持续时间（毫秒）
-    SDL_Event event = {0};
-    int mflag = 0; // 鼠标是否按下(1按下)
-    int mouseX = 0, mouseY = 0;
-    SDL_FPoint mouse = {0};
     Uint32 frame_start, frame_time;
+
+    SDL_Event event = {0};
+    SDL_FPoint mouse = {0};
+
+    // 渲染按钮颜色
+    SDL_Color button_msg_color[] = {
+        {75, 75, 75, 255},
+        {50, 50, 50, 255},
+        {10, 10, 10, 255}};
+    SDL_Color button_color[] = {
+        {200, 200, 200, 255},
+        {175, 175, 175, 255},
+        {165, 165, 165, 255}};
+    SDL_Color *button_msg_color_p = button_msg_color;
+    SDL_Color *button_color_p = button_color;
 
     while (1)
     {
@@ -20,66 +31,151 @@ void play()
         // 事件处理
         while (SDL_PollEvent(&event))
         {
-            FRAME_DURATION = 0; // 设置间隔时间0，及时刷新
-
             switch (event.type)
             {
             case SDL_QUIT: // 退出事件
                 return;
                 break;
+            case SDL_WINDOWEVENT:
+                switch (event.window.event)
+                {
+                case SDL_WINDOWEVENT_SIZE_CHANGED: // 窗口大小变化事件
+                    // 更新窗口大小
+                    Global.windowRect.w = event.window.data1;
+                    Global.windowRect.h = event.window.data2;
+
+                    // 重新按钮区域
+                    Global.buttonRect.x = Global.windowRect.w * 0.2f;
+                    Global.buttonRect.y = Global.windowRect.h * 0.7f;
+                    Global.buttonRect.w = Global.windowRect.w * 0.6f;
+                    Global.buttonRect.h = Global.windowRect.h * 0.15f;
+                    Global.buttonMsgWRect.w = 50.0f;
+                    Global.buttonMsgWRect.h = 10.0f;
+                    Global.buttonMsgWRect.x = Global.buttonRect.x + (Global.buttonRect.w - Global.buttonMsgWRect.w) / 2.0f;
+                    Global.buttonMsgWRect.y = Global.buttonRect.y + (Global.buttonRect.h - Global.buttonMsgWRect.h) / 2.0f;
+                    Global.buttonMsgHRect.w = 10.0f;
+                    Global.buttonMsgHRect.h = 50.0f;
+                    Global.buttonMsgHRect.x = Global.buttonRect.x + (Global.buttonRect.w - Global.buttonMsgHRect.w) / 2.0f;
+                    Global.buttonMsgHRect.y = Global.buttonRect.y + (Global.buttonRect.h - Global.buttonMsgHRect.h) / 2.0f;
+                    break;
+                case SDL_WINDOWEVENT_MOVED: // 窗口位置改变事件
+                    // 更新窗口位置
+                    Global.windowRect.x = event.window.data1;
+                    Global.windowRect.y = event.window.data2;
+                    break;
+                }
+                break;
 
             case SDL_MOUSEMOTION: // 移动事件
                 // 更新鼠标位置信息
-                mouseX = event.motion.x;
-                mouseY = event.motion.y;
-                mouse.x = (float)mouseX;
-                mouse.y = (float)mouseY;
+                mouse.x = (float)event.motion.x;
+                mouse.y = (float)event.motion.y;
 
-                // 鼠标按下状态下需要移动图片
-                if (mflag)
+                // 如果按钮保持按下状态
+                if (CHECK_FLAG(button_enter))
+                {
+                    // 设置按钮颜色
+                    button_color_p = button_color + 2;
+                    button_msg_color_p = button_msg_color + 2;
+                }
+
+                // 如果图片被选择并且被按下
+                else if (CHECK_FLAG(image_is_choice) && CHECK_FLAG(image_enter))
                 {
                     // 移动图片
                     Global.surfaceRect.x += event.motion.xrel;
                     Global.surfaceRect.y += event.motion.yrel;
                 }
+
+                // 如果是在按钮区域内移动
+                else if (SDL_PointInFRect(&mouse, &Global.buttonRect) == SDL_TRUE && !CHECK_FLAG(image_enter))
+                {
+                    // 设置按钮颜色
+                    button_color_p = button_color + 1;
+                    button_msg_color_p = button_msg_color + 1;
+                }
+
+                // 如果是在按钮区域外移动
+                else
+                {
+                    // 清空按钮颜色
+                    button_color_p = button_color;
+                    button_msg_color_p = button_msg_color;
+                }
                 break;
 
             case SDL_MOUSEBUTTONDOWN: // 按下事件
+
                 if (event.button.button == SDL_BUTTON_LEFT)
                 {
-                    mflag = 1;
+                    // 如果是在按钮区域内按下
+                    if (SDL_PointInFRect(&mouse, &Global.buttonRect) == SDL_TRUE)
+                    {
+                        // 设置按钮按下标志
+                        SET_FLAG(button_enter);
+
+                        // 设置按钮颜色
+                        button_color_p = button_color + 2;
+                        button_msg_color_p = button_msg_color + 2;
+                    }
+                    else // 在图片上按下
+                        SET_FLAG(image_enter);
                 }
                 break;
 
             case SDL_MOUSEBUTTONUP: // 弹起事件
                 if (event.button.button == SDL_BUTTON_LEFT)
                 {
-                    mflag = 0;
+                    // 是否按下按钮
+                    if (CHECK_FLAG(button_enter))
+                    {
+                        // 如果是在按钮区域内弹起
+                        if (SDL_PointInFRect(&mouse, &Global.buttonRect) == SDL_TRUE)
+                        {
+                            // 加载人脸信息
+                            load_face();
+
+                            // 设置按钮颜色
+                            button_color_p = button_color + 1;
+                            button_msg_color_p = button_msg_color + 1;
+                        }
+                        // 如果是在按钮区域外弹起
+                        else
+                        {
+                            // 清空按钮颜色
+                            button_color_p = button_color;
+                            button_msg_color_p = button_msg_color;
+                        }
+
+                        // 清空按钮按下标志
+                        CLEAR_FLAG(button_enter);
+                    }
+                    else // 在图片上弹起
+                        CLEAR_FLAG(image_enter);
                 }
                 break;
-
-            case SDL_MOUSEWHEEL:                                                   // 滚轮事件
-                float scale = 0.15f * event.wheel.y;                               // 缩放比例
-                if (scale + Global.scale2 > 0.1f && scale + Global.scale2 < 10.0f) // 缩放比例限制
+            case SDL_MOUSEWHEEL: // 滚轮事件
+                // 图片被选中并且鼠标在图片区域内并且鼠标不在按钮区域内
+                if (CHECK_FLAG(image_is_choice) && SDL_PointInFRect(&mouse, &Global.surfaceRect) == SDL_TRUE && SDL_PointInFRect(&mouse, &Global.buttonRect) != SDL_TRUE)
                 {
-                    float w = Global.surfaceRect.w;
-                    float h = Global.surfaceRect.h;
+                    float scale = 0.15f * event.wheel.y;                               // 缩放比例
+                    if (scale + Global.scale2 > 0.1f && scale + Global.scale2 < 10.0f) // 缩放比例限制
+                    {
+                        float w = Global.surfaceRect.w;
+                        float h = Global.surfaceRect.h;
 
-                    // 设置缩放比例
-                    Global.scale2 += scale;
+                        // 设置缩放比例
+                        Global.scale2 += scale;
 
-                    // 重新设置图片区域
-                    Global.surfaceRect.w = Global.surface->w * Global.scale * Global.scale2;
-                    Global.surfaceRect.h = Global.surface->h * Global.scale * Global.scale2;
+                        // 重新设置图片区域
+                        Global.surfaceRect.w = Global.surface->w * Global.scale * Global.scale2;
+                        Global.surfaceRect.h = Global.surface->h * Global.scale * Global.scale2;
 
-                    // 从鼠标位置向周围缩放
-                    Global.surfaceRect.x -= (((float)mouse.x - Global.surfaceRect.x) / w) * (Global.surfaceRect.w - w);
-                    Global.surfaceRect.y -= (((float)mouse.y - Global.surfaceRect.y) / h) * (Global.surfaceRect.h - h);
+                        // 从鼠标位置向周围缩放
+                        Global.surfaceRect.x -= (((float)mouse.x - Global.surfaceRect.x) / w) * (Global.surfaceRect.w - w);
+                        Global.surfaceRect.y -= (((float)mouse.y - Global.surfaceRect.y) / h) * (Global.surfaceRect.h - h);
+                    }
                 }
-                break;
-
-            default:
-                FRAME_DURATION = FPS_MS;
                 break;
             }
         }
@@ -88,52 +184,63 @@ void play()
         SDL_SetRenderDrawColor(Global.renderer, 255, 255, 255, 255);
         SDL_RenderClear(Global.renderer);
 
-        // 渲染图片
-        SDL_RenderCopyF(Global.renderer, Global.texture, NULL, &Global.surfaceRect);
+        // 绘制照片
+        if (CHECK_FLAG(image_is_choice))
+            SDL_RenderCopyF(Global.renderer, Global.texture, NULL, &Global.surfaceRect);
 
         // 渲染选择框
-        list *node = Global.face;
-        list *nodeT = Global.faceTexture;
-        list *nodeS = Global.faceSurface;
-        while (node)
+        if (CHECK_FLAG(image_is_choice))
         {
-            // 选择框的实际位置
-            SDL_FRect rect = {
-                .x = Global.surfaceRect.x + ((vector *)node->data)->rect.x * Global.scale * Global.scale2,
-                .y = Global.surfaceRect.y + ((vector *)node->data)->rect.y * Global.scale * Global.scale2,
-                .w = ((vector *)node->data)->rect.w * Global.scale * Global.scale2,
-                .h = ((vector *)node->data)->rect.h * Global.scale * Global.scale2};
-
-            // 根据人物是否存在设置对应的颜色
-            if (((vector *)node->data)->flag == HV)
-                SDL_SetRenderDrawColor(Global.renderer, 0, 255, 0, 255);
-            else if (((vector *)node->data)->flag == NO || ((vector *)node->data)->flag == NU)
-                SDL_SetRenderDrawColor(Global.renderer, 255, 0, 0, 255);
-
-            // 渲染选择框
-            SDL_RenderDrawRectF(Global.renderer, &rect);
-
-            // 如果鼠标位置在选择框内，则渲染文本框
-            if (SDL_PointInFRect(&mouse, &rect))
+            list *node = Global.face;
+            list *nodeT = Global.faceTexture;
+            list *nodeS = Global.faceSurface;
+            while (node)
             {
-                // 设置文本框的位置
-                rect.x += rect.w + 5;
-                rect.w *= 1.5f;
+                // 选择框的实际位置
+                SDL_FRect rect = {
+                    .x = Global.surfaceRect.x + ((vector *)node->data)->rect.x * Global.scale * Global.scale2,
+                    .y = Global.surfaceRect.y + ((vector *)node->data)->rect.y * Global.scale * Global.scale2,
+                    .w = ((vector *)node->data)->rect.w * Global.scale * Global.scale2,
+                    .h = ((vector *)node->data)->rect.h * Global.scale * Global.scale2};
+
+                // 根据人物是否存在设置对应的颜色
                 if (((vector *)node->data)->flag == HV)
-                    rect.w *= 1.5f;
+                    SDL_SetRenderDrawColor(Global.renderer, 0, 255, 0, 255);
                 else
-                    rect.y += rect.h / 3.0f;
-                rect.h = (rect.w / (float)(((SDL_Surface *)nodeS->data)->w)) * (float)((SDL_Surface *)nodeS->data)->h;
+                    SDL_SetRenderDrawColor(Global.renderer, 255, 0, 0, 255);
 
-                // 渲染
-                SDL_RenderCopyF(Global.renderer, (SDL_Texture *)nodeT->data, NULL, &rect);
+                // 渲染选择框
+                SDL_RenderDrawRectF(Global.renderer, &rect);
+
+                // 如果鼠标位置在选择框内，则渲染文本框
+                if (SDL_PointInFRect(&mouse, &rect) && !SDL_PointInFRect(&mouse, &Global.buttonRect))
+                {
+                    // 设置文本框的位置
+                    rect.x += rect.w + 5;
+                    rect.w *= 1.5f;
+                    if (((vector *)node->data)->flag == HV)
+                        rect.w *= 1.5f;
+                    else
+                        rect.y += rect.h / 3.0f;
+                    rect.h = (rect.w / (float)(((SDL_Surface *)nodeS->data)->w)) * (float)((SDL_Surface *)nodeS->data)->h;
+
+                    // 渲染
+                    SDL_RenderCopyF(Global.renderer, (SDL_Texture *)nodeT->data, NULL, &rect);
+                }
+
+                // 下一个
+                node = node->next;
+                nodeT = nodeT->next;
+                nodeS = nodeS->next;
             }
-
-            // 下一个
-            node = node->next;
-            nodeT = nodeT->next;
-            nodeS = nodeS->next;
         }
+
+        // 绘图按钮
+        SDL_SetRenderDrawColor(Global.renderer, button_color_p->r, button_color_p->g, button_color_p->b, button_color_p->a);
+        SDL_RenderFillRectF(Global.renderer, &Global.buttonRect);
+        SDL_SetRenderDrawColor(Global.renderer, button_msg_color_p->r, button_msg_color_p->g, button_msg_color_p->b, button_msg_color_p->a);
+        SDL_RenderFillRectF(Global.renderer, &Global.buttonMsgWRect);
+        SDL_RenderFillRectF(Global.renderer, &Global.buttonMsgHRect);
 
         // 刷新Renderer
         SDL_RenderPresent(Global.renderer);
@@ -151,7 +258,7 @@ void play()
  * \param w 图片宽度
  * \param h 图片高度
  */
-void resize(const SDL_Rect *total, SDL_FRect *dRect, int w, int h)
+void resize_image(const SDL_Rect *total, SDL_FRect *dRect, int w, int h)
 {
     if ((float)w / (float)h > (float)total->w / (float)total->h)
     {
@@ -177,14 +284,6 @@ bool render_info()
     char text[256] = {0};
     list *tmp = NULL;
 
-    // 加载字体
-    TTF_Font *font = TTF_OpenFont(TTF_PATH, 24);
-    if (font == NULL)
-    {
-        ERR("TTF_OpenFont: %s\n", TTF_GetError());
-        return false;
-    }
-
     // 设置文本颜色
     SDL_Color colorHV = {0, 255, 0, 255};
     SDL_Color colorNO = {255, 0, 0, 255};
@@ -198,11 +297,11 @@ bool render_info()
         {
             // 渲染人物姓名
             snprintf(text, 256, "姓名:%s", ((vector *)node->data)->info.name);
-            SDL_Surface *surface1 = TTF_RenderUTF8_Blended(font, text, colorHV);
+            SDL_Surface *surface1 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
 
             // 渲染人物年龄
             snprintf(text, 256, "年龄:%d", ((vector *)node->data)->info.age);
-            SDL_Surface *surface2 = TTF_RenderUTF8_Blended(font, text, colorHV);
+            SDL_Surface *surface2 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
 
             // 渲染人物性别
             switch (((vector *)node->data)->info.sex)
@@ -218,7 +317,7 @@ bool render_info()
                 strcpy(text, "性别:未知");
                 break;
             }
-            SDL_Surface *surface3 = TTF_RenderUTF8_Blended(font, text, colorHV);
+            SDL_Surface *surface3 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
 
             // 创建人物信息框
             SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, MAX_OF_THREE(surface1->w, surface2->w, surface3->w), surface1->h + surface2->h + surface3->h + 20, 32, SDL_PIXELFORMAT_RGBA32);
@@ -252,7 +351,7 @@ bool render_info()
         {
             // 人物要显示的信息信息
             strcpy(text, "no info");
-            addData(&tmp, TTF_RenderUTF8_Blended(font, text, colorNO), 0, false);
+            addData(&tmp, TTF_RenderUTF8_Blended(Global.font, text, colorNO), 0, false);
         }
 
         node = node->next;
@@ -270,7 +369,7 @@ bool render_info()
     while (tmp)
     {
         void *data = NULL;
-        if (getData(&tmp, &data, 0) == false)
+        if (getData(&tmp, &data) == false)
             break;
         addData(&Global.faceSurface, data, 0, false);
     }

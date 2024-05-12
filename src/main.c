@@ -1,103 +1,107 @@
 #include "main.h"
 
-// 全局数据
-struct _Window Global = {0};
-
 #undef main
 int main(int argc, char *argv[])
 {
-    char path[PATH_MAX] = {0};
+    WSADATA wsaData; // winsocket数据
+    int ret;         // 返回值
 
+    /************* 初始化设置 *************/
     srand(time(NULL));
 
     // 设置调试控制台支持字符
-#ifdef _DEBUG
-    SetConsoleOutputCP(CP_UTF8);
-#endif
+    DEB(SetConsoleOutputCP(CP_UTF8));
 
-    // 选择目录
-    if (select_image(path, PATH_MAX) == false)
-    {
-        DEBUG("未选择文件\n");
-        return -1;
-    }
+    // 初始化wsaData
+    ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    CHECK(ret == 0, "无法初始化winsocket : %d\n", WSAGetLastError());
 
-    // 设置工作目录
-    chdir(dirname(argv[0]));
+    // 初始化与远程服务器的连接
+    DEBUG("正在连接到远程服务器\n");
+    ret = connect_s();
+    CHECK(ret == true, "无法连接到远程服务器\n");
 
-    // 加载图片Surface
-    Global.surface = IMG_Load(path);
-    if (Global.surface == NULL)
-    {
-        ERR("无法加载图片到Surface: %s\n", IMG_GetError());
-        return -1;
-    }
+    // 启动facenet服务器并与facenet服务器的连接
+    DEBUG("正在连接到facenet服务器\n");
+    ret = connect_f();
+    CHECK(ret == true, "无法连接到facenet服务器\n");
 
-    // 获取图像特征向量
-    DEBUG("正在获取人脸特征向量...\n");
-    if (get_face_vector(path, &Global.face) == false)
-    {
-        ERR("无法提取人脸信息\n");
-        return -1;
-    }
-
-    // 加密后发送给服务器并获取人物数据
-    DEBUG("正在从服务端获取信息...\n");
-    if (get_face_info(Global.face) == false)
-    {
-        ERR("从服务器获取人脸数据失败\n");
-        return -1;
-    }
+    // 读取sm9主公钥
+    FILE *fp = fopen("master_public_key.pem", "rb");
+    CHECK(fp, "无法打开master_public_key.pem\n");
+    sm9_enc_master_public_key_from_pem(&Global.SM9master, fp);
+    fclose(fp);
 
     // 初始化SDL
+    DEBUG("正在初始化SDL\n");
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG | IMG_INIT_TIF | IMG_INIT_WEBP | IMG_INIT_AVIF | IMG_INIT_JXL);
     TTF_Init();
 
+    // 加载字体
+    Global.font = TTF_OpenFont(TTF_PATH, 24);
+    CHECK(Global.font != NULL, "TTF_OpenFont: %s\n", TTF_GetError());
+
     // 创建窗口
-    Global.window = SDL_CreateWindow("encFace", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 700, SDL_WINDOW_SHOWN);
-    if (Global.window == NULL)
-    {
-        ERR("Create window failed: %s\n", SDL_GetError());
-        return -1;
-    }
+    Global.window = SDL_CreateWindow("encFace", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    CHECK(Global.window != NULL, "创建窗口失败 : %s\n", SDL_GetError());
+
+    // 设置窗口的最小大小
+    SDL_SetWindowMinimumSize(Global.window, 400, 400);
+
+    // 创建渲染器
     Global.renderer = SDL_CreateRenderer(Global.window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (Global.renderer == NULL)
-    {
-        ERR("Create renderer failed: %s\n", SDL_GetError());
-        return -1;
-    }
+    CHECK(Global.renderer != NULL, "创建渲染器失败 : %s\n", SDL_GetError());
 
-    // 初始化全局数据
+    // 初始化窗口全局数据
     SDL_GetWindowPosition(Global.window, &Global.windowRect.x, &Global.windowRect.y);
-    SDL_GetWindowSize(Global.window, &Global.windowRect.w, &Global.windowRect.h);
-    resize(&Global.windowRect, &Global.surfaceRect, Global.surface->w, Global.surface->h);
-    Global.texture = SDL_CreateTextureFromSurface(Global.renderer, Global.surface);
-    Global.scale = (float)Global.surfaceRect.w / (float)Global.surface->w;
-    Global.scale2 = 1.0f;
+    Global.windowRect.w = WINDOW_DEFAULT_WIDTH;
+    Global.windowRect.h = WINDOW_DEFAULT_HEIGHT;
 
-    // 渲染人物信息栏
-    if (render_info() == false)
-    {
-        ERR("Render info failed\n");
-        return -1;
-    }
+    // 设置按钮区域
+    Global.buttonRect.x = Global.windowRect.w * 0.2f;
+    Global.buttonRect.y = Global.windowRect.h * 0.7f;
+    Global.buttonRect.w = Global.windowRect.w * 0.6f;
+    Global.buttonRect.h = Global.windowRect.h * 0.15f;
+    Global.buttonMsgWRect.w = 50.0f;
+    Global.buttonMsgWRect.h = 10.0f;
+    Global.buttonMsgWRect.x = Global.buttonRect.x + (Global.buttonRect.w - Global.buttonMsgWRect.w) / 2.0f;
+    Global.buttonMsgWRect.y = Global.buttonRect.y + (Global.buttonRect.h - Global.buttonMsgWRect.h) / 2.0f;
+    Global.buttonMsgHRect.w = 10.0f;
+    Global.buttonMsgHRect.h = 50.0f;
+    Global.buttonMsgHRect.x = Global.buttonRect.x + (Global.buttonRect.w - Global.buttonMsgHRect.w) / 2.0f;
+    Global.buttonMsgHRect.y = Global.buttonRect.y + (Global.buttonRect.h - Global.buttonMsgHRect.h) / 2.0f;
 
     // core gui
     play();
 
+error:
     // 释放资源
-    freeList(&Global.face, (void (*)(void *))freeVector);
-    freeList(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
-    freeList(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
-    SDL_FreeSurface(Global.surface);
-    SDL_DestroyTexture(Global.texture);
+    if (CHECK_FLAG(image_is_choice))
+    {
+        freeList(&Global.face, (void (*)(void *))freeVector);
+        freeList(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
+        freeList(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
+        SDL_FreeSurface(Global.surface);
+        SDL_DestroyTexture(Global.texture);
+    }
     SDL_DestroyRenderer(Global.renderer);
     SDL_DestroyWindow(Global.window);
+    TTF_CloseFont(Global.font);
 
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();
+
+    // 关闭与facenet服务器的连接
+    close_f();
+
+    // 关闭与远程服务器的连接
+    close_s();
+
+    // 释放wsaData
+    WSACleanup();
+
     return 0;
 }
 
@@ -116,7 +120,7 @@ bool select_image(char *path, size_t size)
     ofn.lpstrFile = path;
     ofn.lpstrFile[0] = '\0';
     ofn.nMaxFile = size;
-    ofn.lpstrFilter = "Image\0*.BMP;*.GIF;*.JPG;*.JPEG;*.LBM;*.PCX;*.PNG;*.PNM;*.SVG;*.TGA;*.TIFF;*.WEBP;*.XCF;*.XPM;*.XV\0";
+    ofn.lpstrFilter = "Image\0*.BMP;*.GIF;*.JPG;*.JPEG;*.LBM;*.PCX;*.PNG;*.PNM;*.SVG;*.TGA;*.TIFF;*.WEBP;*.XCF;*.XPM;*.XV\0\0";
     ofn.nFilterIndex = 1;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
@@ -140,5 +144,64 @@ bool select_image(char *path, size_t size)
             return true;
         }
     }
+    return false;
+}
+
+/**
+ * \brief 加载人脸
+ */
+bool load_face()
+{
+    char path[MAX_PATH] = {0};
+    int ret = 0;
+
+    // 选择图片
+    ret = select_image(path, MAX_PATH);
+    CHECK(ret == true, "未选择图片\n");
+
+    // 清除原有数据
+    if (CHECK_FLAG(image_is_choice))
+    {
+        // 释放资源
+        freeList(&Global.face, (void (*)(void *))freeVector);
+        freeList(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
+        freeList(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
+        SDL_FreeSurface(Global.surface);
+        SDL_DestroyTexture(Global.texture);
+
+        // 清除标志
+        CLEAR_FLAG(image_is_choice);
+    }
+
+    // 读取图片Surface
+    Global.surface = IMG_Load(path);
+    CHECK(Global.surface, "读取图片失败 : %s\n", IMG_GetError());
+
+    // 读取图片Texture
+    Global.texture = SDL_CreateTextureFromSurface(Global.renderer, Global.surface);
+    CHECK(Global.texture, "创建图片纹理失败 : %s\n", SDL_GetError());
+
+    // 设置区域大小
+    resize_image(&Global.windowRect, &Global.surfaceRect, Global.surface->w, Global.surface->h);
+    Global.scale = (float)Global.surfaceRect.w / (float)Global.surface->w;
+    Global.scale2 = 1.0f;
+
+    // 获取人脸特征向量
+    ret = get_face_vector(path, &Global.face);
+    CHECK(ret == true, "获取人脸特征向量失败\n");
+
+    // 获取人脸信息
+    ret = get_face_info(Global.face);
+    CHECK(ret == true, "获取人脸信息失败\n");
+
+    // 渲染个人信息
+    ret = render_info();
+    CHECK(ret == true, "渲染个人信息失败\n");
+
+    // 设置已选择标志
+    SET_FLAG(image_is_choice);
+
+    return true;
+error:
     return false;
 }
