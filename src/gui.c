@@ -17,11 +17,12 @@ void play()
         {50, 50, 50, 255},
         {10, 10, 10, 255}};
     SDL_Color button_color[] = {
-        {200, 200, 200, 255},
-        {175, 175, 175, 255},
-        {165, 165, 165, 255}};
+        {200, 250, 200, 255},
+        {175, 210, 175, 255},
+        {165, 190, 165, 255}};
     SDL_Color *button_msg_color_p = button_msg_color;
     SDL_Color *button_color_p = button_color;
+
 
     while (1)
     {
