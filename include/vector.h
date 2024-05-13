@@ -19,15 +19,6 @@
 #include "data.h"
 #include "web.h"
 
-
-/**
- * \brief 从图片中提取特征向量
- * \param image 图片
- * \param head 链表头指针
- * \return 是否成功提取特征向量
- */
-bool get_face_vector(const wchar_t *image, list **head);
-
 /**
  * \brief 释放vec数据
  */

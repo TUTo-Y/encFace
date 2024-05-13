@@ -133,7 +133,7 @@ void play()
                         if (SDL_PointInFRect(&mouse, &Global.buttonRect) == SDL_TRUE)
                         {
                             // 加载人脸信息
-                            load_face();
+                            loadFace();
 
                             // 设置按钮颜色
                             button_color_p = button_color + 1;
@@ -258,7 +258,7 @@ void play()
  * \param w 图片宽度
  * \param h 图片高度
  */
-void resize_image(const SDL_Rect *total, SDL_FRect *dRect, int w, int h)
+void resizeImage(const SDL_Rect *total, SDL_FRect *dRect, int w, int h)
 {
     if ((float)w / (float)h > (float)total->w / (float)total->h)
     {
@@ -279,7 +279,7 @@ void resize_image(const SDL_Rect *total, SDL_FRect *dRect, int w, int h)
 /**
  * \brief 将用户信息渲染成名片
  */
-bool render_info()
+bool renderInfo()
 {
     char text[256] = {0};
     list *tmp = NULL;

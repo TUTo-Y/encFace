@@ -26,11 +26,11 @@
 /**
  * \brief 调用WindowsAPI选择图片
  */
-bool select_image(wchar_t *path, size_t size);
+bool selectImage(wchar_t *path, size_t size);
 
 /**
  * \brief 加载人脸
-*/
-bool load_face();
+ */
+bool loadFace();
 
 #endif // _MAIN_H

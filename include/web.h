@@ -12,11 +12,12 @@
 #include "data.h"
 #include "vector.h"
 
-#define MSG_TYPE_SIZE sizeof(size_t) // 消息类型长度
-#define MSG_CLOSE 0                  // 关闭连接消息
-#define MSG_SUCESS 1                 // 处理成功
-#define MSG_GET_FACE_VECTOR 2        // 请求获取人脸特征向量
-#define MSG_GET_FACE_INFO 3          // 请求获取人脸信息
+typedef size_t MSG_TYPE;               // 消息类型
+#define MSG_TYPE_SIZE sizeof(MSG_TYPE) // 消息类型长度
+#define MSG_CLOSE 0                    // 关闭连接消息
+#define MSG_SUCESS 1                   // 处理成功
+#define MSG_GET_FACE_VECTOR 2          // 请求获取人脸特征向量
+#define MSG_GET_FACE_INFO 3            // 请求获取人脸信息
 
 #define MSG_FACE 4     // 人脸数据
 #define MSG_FACE_END 5 // 结束
@@ -50,29 +51,37 @@
  * \brief 建立与远程服务器的连接
  * \return 是否成功
  */
-bool connect_s();
+bool connectServer();
 
 /**
  * \brief 启动facenet服务器并与facenet服务器的连接
  * \return 是否成功
  */
-bool connect_f();
+bool connectFaceNet();
 
 /**
  * \brief 关闭与远程服务器的连接
  */
-void close_s();
+void closeServer();
 
 /**
  * \brief 关闭与facenet服务器的连接
  */
-void close_f();
+void closeFaceNet();
+
+/**
+ * \brief 从图片中提取特征向量
+ * \param image 图片
+ * \param head 链表头指针
+ * \return 是否成功提取特征向量
+ */
+bool getFaceVector(const wchar_t *image, list **head);
 
 /**
  * \brief 通过人脸特征向量获取人脸信息
  * \param face 人脸数据链表
  * \return 是否成功
  */
-bool get_face_info(list *face);
+bool getFaceInfo(list *face);
 
 #endif

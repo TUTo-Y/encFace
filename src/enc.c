@@ -67,7 +67,7 @@ bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const 
     *out = Malloc(msg->size); // chunk关于8字节对齐, 所以无需对齐手动msg的data
     for (int i = 0; i < k_n; i++)
         ((ZUC_UINT32 *)(*out)->data)[i] = ((ZUC_UINT32 *)msg->data)[i] ^ k[i];
-    
+
     // 释放资源
     free(k);
     return true;

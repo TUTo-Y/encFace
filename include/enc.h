@@ -1,6 +1,6 @@
 /**
  * 加密函数
-*/
+ */
 #ifndef _ENC_H
 #define _ENC_H
 

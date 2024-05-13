@@ -109,7 +109,7 @@ struct _Global
     list *faceSurface; // 人脸Surface列表
     list *faceTexture; // 人脸Texture列表
 
-    SM9_ENC_MASTER_KEY SM9master;    // sm9主密钥
+    SM9_ENC_MASTER_KEY SM9master; // sm9主密钥
 
     size_t flag; // 标志
 };
@@ -137,14 +137,14 @@ bool getData(list **head, void **data);
  * \param head 链表头指针
  * \param Free 释放数据的函数指针
  */
-void freeList(list **head, void (*freedom)(void *ptr));
+void listFree(list **head, void (*freedom)(void *ptr));
 
 /**
  * \brief 获取链表元素数量
  * \param head 链表头指针
  * \return 链表元素数量
  */
-size_t listLength(list *head);
+size_t listLen(list *head);
 
 /**
  * \brief 创建数据

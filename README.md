@@ -2,4 +2,4 @@
 
 ## 安装依赖
 
-SEAL
+PySeal

@@ -73,7 +73,7 @@ bool getData(list **head, void **data)
  * \param head 链表头指针
  * \param Free 释放数据的函数指针
  */
-void freeList(list **head, void (*freedom)(void *ptr))
+void listFree(list **head, void (*freedom)(void *ptr))
 {
     if (!head)
         return;
@@ -96,7 +96,7 @@ void freeList(list **head, void (*freedom)(void *ptr))
  * \param head 链表头指针
  * \return 链表元素数量
  */
-size_t listLength(list *head)
+size_t listLen(list *head)
 {
     size_t count = 0;
     while (head)

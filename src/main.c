@@ -18,12 +18,12 @@ int main(int argc, char *argv[])
 
     // 初始化与远程服务器的连接
     DEBUG("正在连接到远程服务器\n");
-    ret = connect_s();
+    ret = connectServer();
     CHECK(ret == true, "无法连接到远程服务器\n");
 
     // 启动facenet服务器并与facenet服务器的连接
     DEBUG("正在连接到facenet服务器\n");
-    ret = connect_f();
+    ret = connectFaceNet();
     CHECK(ret == true, "无法连接到facenet服务器\n");
 
     // 读取sm9主公钥
@@ -79,9 +79,9 @@ error:
     // 释放资源
     if (CHECK_FLAG(image_is_choice))
     {
-        freeList(&Global.face, (void (*)(void *))freeVector);
-        freeList(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
-        freeList(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
+        listFree(&Global.face, (void (*)(void *))freeVector);
+        listFree(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
+        listFree(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
         SDL_FreeSurface(Global.surface);
         SDL_DestroyTexture(Global.texture);
     }
@@ -94,10 +94,10 @@ error:
     SDL_Quit();
 
     // 关闭与facenet服务器的连接
-    close_f();
+    closeFaceNet();
 
     // 关闭与远程服务器的连接
-    close_s();
+    closeServer();
 
     // 释放wsaData
     WSACleanup();
@@ -110,7 +110,7 @@ error:
 /**
  * \brief 调用WindowsAPI选择图片
  */
-bool select_image(wchar_t *path, size_t size)
+bool selectImage(wchar_t *path, size_t size)
 {
     OPENFILENAMEW ofn;
     HWND hwnd = NULL;
@@ -133,12 +133,12 @@ bool select_image(wchar_t *path, size_t size)
     {
         // 检查文件是否存在
         hf = CreateFileW(ofn.lpstrFile,
-                        GENERIC_READ,
-                        0,
-                        (LPSECURITY_ATTRIBUTES)NULL,
-                        OPEN_EXISTING,
-                        FILE_ATTRIBUTE_NORMAL,
-                        (HANDLE)NULL);
+                         GENERIC_READ,
+                         0,
+                         (LPSECURITY_ATTRIBUTES)NULL,
+                         OPEN_EXISTING,
+                         FILE_ATTRIBUTE_NORMAL,
+                         (HANDLE)NULL);
         // 文件存在
         if (hf != INVALID_HANDLE_VALUE)
         {
@@ -152,23 +152,23 @@ bool select_image(wchar_t *path, size_t size)
 /**
  * \brief 加载人脸
  */
-bool load_face()
+bool loadFace()
 {
     wchar_t path[MAX_PATH] = {0};
     int ret = 0;
     char *buffer = NULL;
 
     // 选择图片
-    ret = select_image(path, MAX_PATH);
+    ret = selectImage(path, MAX_PATH);
     CHECK(ret == true, "未选择图片\n");
 
     // 清除原有数据
     if (CHECK_FLAG(image_is_choice))
     {
         // 释放资源
-        freeList(&Global.face, (void (*)(void *))freeVector);
-        freeList(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
-        freeList(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
+        listFree(&Global.face, (void (*)(void *))freeVector);
+        listFree(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
+        listFree(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
         SDL_FreeSurface(Global.surface);
         SDL_DestroyTexture(Global.texture);
 
@@ -200,25 +200,27 @@ bool load_face()
     CHECK(Global.texture, "创建图片纹理失败 : %s\n", SDL_GetError());
 
     // 设置区域大小
-    resize_image(&Global.windowRect, &Global.surfaceRect, Global.surface->w, Global.surface->h);
+    resizeImage(&Global.windowRect, &Global.surfaceRect, Global.surface->w, Global.surface->h);
     Global.scale = (float)Global.surfaceRect.w / (float)Global.surface->w;
     Global.scale2 = 1.0f;
 
     // 获取人脸特征向量
-    ret = get_face_vector(path, &Global.face);
+    ret = getFaceVector(path, &Global.face);
     CHECK(ret == true, "获取人脸特征向量失败\n");
 
-    // 获取人脸信息
-    ret = get_face_info(Global.face);
-    CHECK(ret == true, "获取人脸信息失败\n");
+    if (0 < listLen(Global.face))
+    {
+        // 获取人脸信息
+        ret = getFaceInfo(Global.face);
+        CHECK(ret == true, "获取人脸信息失败\n");
 
-    // 渲染个人信息
-    ret = render_info();
-    CHECK(ret == true, "渲染个人信息失败\n");
+        // 渲染个人信息
+        ret = renderInfo();
+        CHECK(ret == true, "渲染个人信息失败\n");
+    }
 
     // 设置已选择标志
     SET_FLAG(image_is_choice);
-
     return true;
 error:
     return false;

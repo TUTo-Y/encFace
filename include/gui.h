@@ -31,11 +31,11 @@ void play();
  * \param w 图片宽度
  * \param h 图片高度
  */
-void resize_image(const SDL_Rect *total, SDL_FRect *dRect, int w, int h);
+void resizeImage(const SDL_Rect *total, SDL_FRect *dRect, int w, int h);
 
 /**
  * \brief 将用户信息渲染成名片
  */
-bool render_info();
+bool renderInfo();
 
 #endif // _GUI_H

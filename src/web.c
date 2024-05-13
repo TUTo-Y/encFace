@@ -4,7 +4,7 @@
  * \brief 建立与远程服务器的连接
  * \return 是否成功
  */
-bool connect_s()
+bool connectServer()
 {
     struct sockaddr_in server; // 服务器地址
     int ret;
@@ -29,7 +29,7 @@ error:
  * \brief 建立与facenet服务器的连接
  * \return 是否成功
  */
-bool connect_f()
+bool connectFaceNet()
 {
     struct sockaddr_in server; // 服务器地址
     int ret;
@@ -79,7 +79,6 @@ bool connect_f()
     // 设置监听时间
     struct timeval timeout;
     timeout.tv_sec = 10;
-    timeout.tv_usec = 0;
     ret = setsockopt(listSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
     CHECK(ret != SOCKET_ERROR, "设置监听超时时间失败 : %d\n", WSAGetLastError());
 
@@ -106,7 +105,7 @@ error:
 /**
  * \brief 关闭与远程服务器的连接
  */
-void close_s()
+void closeServer()
 {
     size_t close = MSG_CLOSE;
 
@@ -120,7 +119,7 @@ void close_s()
 /**
  * \brief 关闭与facenet服务器的连接
  */
-void close_f()
+void closeFaceNet()
 {
     size_t close = MSG_CLOSE;
 
@@ -132,18 +131,86 @@ void close_f()
 }
 
 /**
+ * \brief 从图片中提取特征向量
+ * \param image 图片
+ * \param head 链表头指针
+ * \return 是否成功提取特征向量
+ */
+bool getFaceVector(const wchar_t *image, list **head)
+{
+    int ret = 0;
+    vector vec = {0};
+    size_t size = 0;
+    MSG_TYPE msgs = MSG_GET_FACE_VECTOR;
+
+    // 向facenet服务器发送请求(size_t)
+    ret = send(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, 0);
+    CHECK(ret != SOCKET_ERROR, "发送请求失败 : %d\n", WSAGetLastError());
+
+    // 向facenet服务器发送文件名长度(size_t)
+    size = wcslen(image) * sizeof(wchar_t);
+    ret = send(Global.sock_f, (char *)&size, sizeof(size), 0);
+    CHECK(ret != SOCKET_ERROR, "发送文件名长度 : %d\n", WSAGetLastError());
+
+    // 向facenet服务器发送文件名(wchar_t*)
+    ret = send(Global.sock_f, (char *)image, size, 0);
+    CHECK(ret != SOCKET_ERROR, "发送文件名失败 : %d\n", WSAGetLastError());
+
+    // facenet返回检测结果
+    while (true)
+    {
+        // 接受请求(size_t)
+        ret = recv(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, 0);
+        CHECK(ret != SOCKET_ERROR, "接收请求失败 : %d\n", WSAGetLastError());
+
+        // 检测是否结束
+        if (MSG_FACE != msgs)
+            break;
+
+        memset(&vec, 0, sizeof(vec));
+
+        // 人物框位置(SDL_FRect)
+        ret = recv(Global.sock_f, (char *)&vec.rect, sizeof(vec.rect), 0);
+        CHECK(ret != SOCKET_ERROR, "接收人物框位置失败 : %d\n", WSAGetLastError());
+        vec.rect.w -= vec.rect.x;
+        vec.rect.h -= vec.rect.y;
+
+        // 返回特征向量大小(size_t)
+        ret = recv(Global.sock_f, (char *)&size, sizeof(size), 0);
+        CHECK(ret != SOCKET_ERROR, "接收特征向量大小失败 : %d\n", WSAGetLastError());
+
+        // 创建特征向量空间
+        vec.v = (data *)Malloc(size);
+        CHECK(vec.v, "内存分配失败\n");
+
+        // 返回特征向量数据(byte*)
+        ret = recv(Global.sock_f, (char *)vec.v->data, size, 0);
+        CHECK(ret != SOCKET_ERROR, "接收特征向量数据失败 : %d\n", WSAGetLastError());
+
+        // 添加到链表
+        ret = addData(head, &vec, sizeof(vec), true);
+        CHECK(ret == true, "添加数据失败\n");
+    }
+
+    return true;
+error:
+    listFree(head, (void (*)(void *))freeVector);
+    return false;
+}
+
+/**
  * \brief 通过人脸特征向量获取人脸信息
  * \param face 人脸数据链表
  * \return 是否成功
  */
-bool get_face_info(list *face)
+bool getFaceInfo(list *face)
 {
     int ret;
     size_t count = 0;
 
-    // 向远程服务器发送请求
-    size_t m = MSG_GET_FACE_INFO;
-    ret = send(Global.sock_s, (char *)&m, MSG_TYPE_SIZE, 0);
+    // 向远程服务器发送请求(size_t)
+    MSG_TYPE msgs = MSG_GET_FACE_INFO;
+    ret = send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0);
     CHECK(ret != SOCKET_ERROR, "发送查找申请失败 : %d\n", WSAGetLastError());
 
     // 发送身份ID长度(size_t)
@@ -156,14 +223,12 @@ bool get_face_info(list *face)
     CHECK(ret != SOCKET_ERROR, "发送身份ID失败 : %d\n", WSAGetLastError());
 
     // 发送需要验证的人脸总数量(size_t)
-    count = listLength(face);
+    count = listLen(face);
     ret = send(Global.sock_s, (char *)&count, sizeof(size_t), 0);
     CHECK(ret != SOCKET_ERROR, "发送人脸数量失败 : %d\n", WSAGetLastError());
 
-// 发送数据
-#ifdef _DEBUG
-    count = 0;
-#endif
+    // 发送数据
+    DEB(count = 0);
     list *node = face;
     while (node)
     {
@@ -201,34 +266,28 @@ bool get_face_info(list *face)
         Free(sm9Out);
 
         node = node->next;
-#ifdef _DEBUG
-        count++;
-#endif
+        DEB(count++);
     }
 
     // 接受服务器回馈
-#ifdef _DEBUG
-    count = 0;
-#endif
+    DEB(count = 0);
     node = face;
     while (node)
     {
         // 接受服务器回馈人物存在标志
         DEBUG("正在接受第%d个人脸数据\n", count + 1);
-        ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->flag), sizeof(int), MSG_WAITALL);
+        ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->flag), sizeof(int), 0);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 接受服务器回馈flag失败 : %d\n", count + 1, WSAGetLastError());
 
         // 如果人物存在, 则接受人物信息
         if (((vector *)node->data)->flag == HV)
         {
-            ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->info), sizeof(msg), MSG_WAITALL);
+            ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->info), sizeof(msg), 0);
             CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 接受服务器回馈msg失败 : %d\n", count + 1, WSAGetLastError());
         }
 
-#ifdef _DEBUG
-        count++;
-#endif
         node = node->next;
+        DEB(count++);
     }
 
     return true;
