@@ -78,7 +78,7 @@ bool connectFaceNet()
 
     // 设置监听时间
     struct timeval timeout;
-    timeout.tv_sec = 10;
+    timeout.tv_sec = 0;
     ret = setsockopt(listSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
     CHECK(ret != SOCKET_ERROR, "设置监听超时时间失败 : %d\n", WSAGetLastError());
 
@@ -91,7 +91,6 @@ bool connectFaceNet()
     CHECK(Global.sock_f != INVALID_SOCKET, "接受facenet端连接失败 : %d\n", WSAGetLastError());
 
     // 设置接收数据时间
-    timeout.tv_sec = 0;
     ret = setsockopt(Global.sock_f, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
     CHECK(ret != SOCKET_ERROR, "设置监听超时时间失败 : %d\n", WSAGetLastError());
 

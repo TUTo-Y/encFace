@@ -43,11 +43,10 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
     image = ImageOps.equalize(image)    # 直方图均衡化
 
     # 将PIL图像转换为OpenCV图像
-    # image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     # 使用MTCNN检测人脸
     boxes, _ = mtcnn.detect(image)
-    
     if boxes is None:
         s.send(struct.pack('Q', MSG_FACE_END))
         return None
@@ -90,10 +89,12 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
         x_cipher    = encryptor.encrypt(x_plain)
         
         # 将数据序列化为字节
-        with open("tmp\\tmp", "w") as vf:
+        with open("tmp\\tmp", "wb") as vf:
+            vf.close()
             x_cipher.save(vf.name)
         f = open("tmp\\tmp", "rb")
         x_cipher_bytes = f.read()
+        f.close()
 
         # 发送数据大小
         s.send(struct.pack('Q', len(x_cipher_bytes)))
@@ -105,7 +106,8 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
             
     s.send(struct.pack('Q', MSG_FACE_END))
     print('识别完成')
-    if "tmp\\tmp" in os.listdir("tmp"):
+    
+    if os.path.exists("tmp\\tmp"):
         os.remove("tmp\\tmp")
 
 def main():
