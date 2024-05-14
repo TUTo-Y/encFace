@@ -219,6 +219,8 @@ bool loadFace()
         CHECK(ret == true, "渲染个人信息失败\n");
     }
 
+    DEB(else { DEBUG("未检测到人脸\n"); });
+
     // 设置已选择标志
     SET_FLAG(image_is_choice);
     return true;

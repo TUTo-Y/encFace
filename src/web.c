@@ -244,11 +244,11 @@ bool getFaceInfo(list *face)
         sm9Out = Malloc(SM9_MAX_CIPHERTEXT_SIZE);
         sm9_encrypt(&Global.SM9master, USER_ID, strlen(USER_ID), k, sizeof(k), sm9Out->data, &sm9Out->size);
 
-        // 发送经过sm9加密的ZUC密钥和特征向量的长度(size_t)
+        // 发送经过sm9加密的ZUC密钥的长度(size_t)
         ret = send(Global.sock_s, (char *)&sm9Out->size, sizeof(size_t), 0);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 经过sm9加密的ZUC密钥长度失败 : %d\n", count + 1, WSAGetLastError());
 
-        // 发送经过sm9加密的ZUC密钥和特征向量(char*)
+        // 发送经过sm9加密的ZUC密钥(char*)
         ret = send(Global.sock_s, (char *)sm9Out->data, sm9Out->size, 0);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 经过sm9加密的ZUC密钥失败 : %d\n", count + 1, WSAGetLastError());
 

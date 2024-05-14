@@ -12,8 +12,8 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <pthread.h>
-#include <SDL2/SDL.h>
 #include <sys/types.h>
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <GmSSL/sm9.h>
 
@@ -145,6 +145,11 @@ void listFree(list **head, void (*freedom)(void *ptr));
  * \return 链表元素数量
  */
 size_t listLen(list *head);
+
+/**
+ * \brief 释放vec数据
+ */
+void freeVector(vector *vec);
 
 /**
  * \brief 创建数据

@@ -28,9 +28,6 @@ $(OBJDIR)/%.o:$(SRCDIR)/%.c $(HANDLE) | $(OBJDIR)
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-test:test/test.c
-	gcc -o $@.exe $^ $(CFLAGS)
-
 .PHONY: clean
 clean:
 	if [ -d "$(OBJDIR)" ]; then rm $(OBJDIR)/*.o; fi

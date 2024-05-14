@@ -23,7 +23,6 @@ void play()
     SDL_Color *button_msg_color_p = button_msg_color;
     SDL_Color *button_color_p = button_color;
 
-
     while (1)
     {
         // 设置帧开始时间
@@ -252,6 +251,7 @@ void play()
             SDL_Delay(FRAME_DURATION - frame_time);
     }
 }
+
 /**
  * \brief 将图片缩放到指定区间
  * \param total 区间
@@ -290,6 +290,12 @@ bool renderInfo()
     SDL_Color colorNO = {255, 0, 0, 255};
     SDL_Color colorBK = {0, 0, 0, 0};
 
+    // Surface
+    SDL_Surface *surface1 = NULL;
+    SDL_Surface *surface2 = NULL;
+    SDL_Surface *surface3 = NULL;
+    SDL_Surface *surface = NULL;
+
     // 渲染名片到tmp链表
     list *node = Global.face;
     while (node)
@@ -298,11 +304,11 @@ bool renderInfo()
         {
             // 渲染人物姓名
             snprintf(text, 256, "姓名:%s", ((vector *)node->data)->info.name);
-            SDL_Surface *surface1 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
+            surface1 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
 
             // 渲染人物年龄
             snprintf(text, 256, "年龄:%d", ((vector *)node->data)->info.age);
-            SDL_Surface *surface2 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
+            surface2 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
 
             // 渲染人物性别
             switch (((vector *)node->data)->info.sex)
@@ -318,10 +324,10 @@ bool renderInfo()
                 strcpy(text, "性别:未知");
                 break;
             }
-            SDL_Surface *surface3 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
+            surface3 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
 
             // 创建人物信息框
-            SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, MAX_OF_THREE(surface1->w, surface2->w, surface3->w), surface1->h + surface2->h + surface3->h + 20, 32, SDL_PIXELFORMAT_RGBA32);
+            surface = SDL_CreateRGBSurfaceWithFormat(0, MAX_OF_THREE(surface1->w, surface2->w, surface3->w), surface1->h + surface2->h + surface3->h + 20, 32, SDL_PIXELFORMAT_RGBA32);
 
             // 用浅透明的淡蓝色去填充背景
             SDL_FillRect(surface, NULL, SDL_MapRGBA(surface->format, 128, 128, 255, 64));

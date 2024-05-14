@@ -108,6 +108,19 @@ size_t listLen(list *head)
 }
 
 /**
+ * \brief 释放vec数据
+ */
+void freeVector(vector *vec)
+{
+    if (vec)
+    {
+        if (vec->v)
+            Free(vec->v);
+        free(vec);
+    }
+}
+
+/**
  * \brief 创建数据
  * \param size 大小
  */

@@ -6,7 +6,6 @@
 #define ID "admin.com"
 #define passwd "123456"
 
-
 // #define SM9_MAX_PLAINTEXT_SIZE 255
 // #define SM9_MAX_CIPHERTEXT_SIZE 367
 

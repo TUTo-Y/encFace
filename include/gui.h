@@ -10,7 +10,6 @@
 #include <SDL2/SDL_image.h>
 
 #include "main.h"
-#include "vector.h"
 
 // 获取最大长度，用于处理人物名片
 #define MAX(a, b) ((a) > (b) ? (a) : (b))

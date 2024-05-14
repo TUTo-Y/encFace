@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include "data.h"
-#include "vector.h"
 #include "gui.h"
 #include "enc.h"
 #include "web.h"

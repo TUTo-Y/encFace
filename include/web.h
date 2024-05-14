@@ -10,7 +10,6 @@
 #include "config.h"
 #include "enc.h"
 #include "data.h"
-#include "vector.h"
 
 typedef size_t MSG_TYPE;               // 消息类型
 #define MSG_TYPE_SIZE sizeof(MSG_TYPE) // 消息类型长度
