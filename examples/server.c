@@ -155,22 +155,22 @@ int main()
                         strcpy(m.name, "老二");
                         break;
                     case 2:
-                        strcpy(m.name, "张三");
+                        strcpy(m.name, "老三");
                         break;
                     case 3:
-                        strcpy(m.name, "李四");
+                        strcpy(m.name, "老四");
                         break;
                     case 4:
-                        strcpy(m.name, "王五");
+                        strcpy(m.name, "老五");
                         break;
                     case 5:
                         strcpy(m.name, "老六");
                         break;
                     case 6:
-                        strcpy(m.name, "Wald");
+                        strcpy(m.name, "老七");
                         break;
                     }
-                    m.age = rand() % 100;
+                    m.age = rand() % 30 + 10;
                     send(client_sockfd, &m, sizeof(msg), 0);
 
                     printf("发送name = %s\n", m.name);
