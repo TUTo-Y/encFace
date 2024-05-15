@@ -12,6 +12,7 @@ from facenet_pytorch import MTCNN, InceptionResnetV1
 public_key_file = "BGV_public_key"
 
 MSG_TYPE_SIZE       = 8
+
 MSG_CLOSE           = 0
 MSG_SUCESS          = 1
 MSG_GET_FACE_VECTOR = 2
