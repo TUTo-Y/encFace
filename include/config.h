@@ -6,7 +6,7 @@
 
 // debug
 #ifdef _DEBUG
-#define ERR(...) fprintf(stderr, __VA_ARGS__)
+#define ERR(...) fprintf(stderr, "\x1B[91m" __VA_ARGS__), fprintf(stderr, "\x1B[0m");
 #define DEBUG(...) fprintf(stdout, __VA_ARGS__)
 #define DEB(...) __VA_ARGS__
 #define REL(...)
@@ -45,5 +45,7 @@
 #define SM9_PUBLIC "master_public_key.pem" // sm9主公钥文件
 
 #define TTF_PATH "ttf.ttc" // 字体文件
+
+#define CIRCLE_FILE "white.png" // 白色的圆
 
 #endif // _CONFIG_H

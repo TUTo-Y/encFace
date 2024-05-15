@@ -8,8 +8,8 @@ eINCDIR	=	external/include
 SOURCE	=	$(wildcard $(SRCDIR)/*.c)
 OBJECT	=	$(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCE))
 HANDLE	=	$(wildcard $(INCDIR)/*.h)
-CFLAGS  =  -I$(INCDIR) -I$(eINCDIR) -L$(eLIBDIR) -g
-CFLAGS  += -lSDL2 -lSDL2main -lSDL2_image -lSDL2_ttf -lcomdlg32 -lGmSSL -lws2_32
+CFLAGS  =  -I$(INCDIR) -I$(eINCDIR) -L$(eLIBDIR)
+CFLAGS  += -lSDL2 -lSDL2main -lSDL2_image -lSDL2_ttf -lcomdlg32 -lGmSSL -lws2_32 -lm
 TARGET	=	encFace
 
 # 检查CFLAGS是否包含-g参数

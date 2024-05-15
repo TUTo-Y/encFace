@@ -25,6 +25,8 @@
         "enc.h": "c",
         "pthread.h": "c",
         "unistd.h": "c",
-        "sdl_ttf.h": "c"
+        "sdl_ttf.h": "c",
+        "types.h": "c",
+        "draw.h": "c"
     }
 }

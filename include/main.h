@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <limits.h>
 #include <libgen.h>
 #include <stdbool.h>
 #include <winsock2.h>
@@ -21,15 +20,31 @@
 #include "gui.h"
 #include "enc.h"
 #include "web.h"
+#include "draw.h"
 
 /**
  * \brief 调用WindowsAPI选择图片
  */
-bool selectImage(wchar_t *path, size_t size);
+bool selectImageFile(wchar_t *path, size_t size);
 
 /**
  * \brief 加载人脸
  */
-bool loadFace();
+bool choiceImage();
+
+/**
+ * \brief 使用多线程加载数据
+ */
+void *th(void *arg);
+
+/**
+ * \brief 访问线程使用标志
+ */
+bool getTh();
+
+/**
+ * \brief 设置线程使用标志
+ */
+void setTh(bool flag);
 
 #endif // _MAIN_H

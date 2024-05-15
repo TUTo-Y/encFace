@@ -10,10 +10,7 @@
 #include <SDL2/SDL_image.h>
 
 #include "main.h"
-
-// 获取最大长度，用于处理人物名片
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MAX_OF_THREE(a, b, c) (MAX(MAX(a, b), c))
+#include "draw.h"
 
 #define FPS 60              // 刷新率
 #define FPS_MS (1000 / FPS) // 每一帧的持续时间（毫秒）
@@ -33,8 +30,23 @@ void play();
 void resizeImage(const SDL_Rect *total, SDL_FRect *dRect, int w, int h);
 
 /**
- * \brief 将用户信息渲染成名片
+ * 获取当前按钮标准大小
+*/
+float getButtonRect();
+
+/**
+ * \brief 根据按钮位置设置十字
+*/
+void setCross();
+
+/**
+ * \brief 重置按钮位置
+*/
+void resetButton();
+
+/**
+ * \brief 检测当前位置是否在按钮上
  */
-bool renderInfo();
+bool checkButton(SDL_FPoint point, float x, float y, float r);
 
 #endif // _GUI_H

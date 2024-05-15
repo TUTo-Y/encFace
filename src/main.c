@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
     WSADATA wsaData; // winsocket数据
-    int ret;         // 返回值
+    int ret;
 
     /************* 初始化设置 *************/
     srand(time(NULL));
@@ -12,28 +12,32 @@ int main(int argc, char *argv[])
     // 设置调试控制台支持字符
     DEB(SetConsoleOutputCP(CP_UTF8));
 
+    // 初始化线程锁
+    pthread_mutex_init(&Global.lock, NULL);
+
     // 初始化wsaData
     ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
     CHECK(ret == 0, "无法初始化winsocket : %d\n", WSAGetLastError());
 
     // 初始化与远程服务器的连接
-    DEBUG("正在连接到远程服务器\n");
+    DEBUG("正在连接到远程服务器...\n");
     ret = connectServer();
     CHECK(ret == true, "无法连接到远程服务器\n");
 
     // 启动facenet服务器并与facenet服务器的连接
-    DEBUG("正在连接到facenet服务器\n");
+    DEBUG("正在连接到facenet服务器...\n");
     ret = connectFaceNet();
     CHECK(ret == true, "无法连接到facenet服务器\n");
 
     // 读取sm9主公钥
+    DEBUG("加载sm9主公钥...\n");
     FILE *fp = fopen("master_public_key.pem", "rb");
     CHECK(fp, "无法打开master_public_key.pem\n");
     sm9_enc_master_public_key_from_pem(&Global.SM9master, fp);
     fclose(fp);
 
     // 初始化SDL
-    DEBUG("正在初始化SDL\n");
+    DEBUG("初始化SDL...\n");
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG | IMG_INIT_TIF | IMG_INIT_WEBP | IMG_INIT_AVIF | IMG_INIT_JXL);
     TTF_Init();
@@ -53,29 +57,39 @@ int main(int argc, char *argv[])
     Global.renderer = SDL_CreateRenderer(Global.window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     CHECK(Global.renderer != NULL, "创建渲染器失败 : %s\n", SDL_GetError());
 
+    // 设置渲染器
+    ret = SDL_SetRenderDrawBlendMode(Global.renderer, SDL_BLENDMODE_BLEND);
+    CHECK(ret == 0, "设置渲染器错误 : %s\n", SDL_GetError());
+
     // 初始化窗口全局数据
     SDL_GetWindowPosition(Global.window, &Global.windowRect.x, &Global.windowRect.y);
     Global.windowRect.w = WINDOW_DEFAULT_WIDTH;
     Global.windowRect.h = WINDOW_DEFAULT_HEIGHT;
 
     // 设置按钮区域
-    Global.buttonRect.x = Global.windowRect.w * 0.2f;
-    Global.buttonRect.y = Global.windowRect.h * 0.7f;
-    Global.buttonRect.w = Global.windowRect.w * 0.6f;
-    Global.buttonRect.h = Global.windowRect.h * 0.15f;
-    Global.buttonMsgWRect.w = 50.0f;
-    Global.buttonMsgWRect.h = 10.0f;
-    Global.buttonMsgWRect.x = Global.buttonRect.x + (Global.buttonRect.w - Global.buttonMsgWRect.w) / 2.0f;
-    Global.buttonMsgWRect.y = Global.buttonRect.y + (Global.buttonRect.h - Global.buttonMsgWRect.h) / 2.0f;
-    Global.buttonMsgHRect.w = 10.0f;
-    Global.buttonMsgHRect.h = 50.0f;
-    Global.buttonMsgHRect.x = Global.buttonRect.x + (Global.buttonRect.w - Global.buttonMsgHRect.w) / 2.0f;
-    Global.buttonMsgHRect.y = Global.buttonRect.y + (Global.buttonRect.h - Global.buttonMsgHRect.h) / 2.0f;
+    resetButton();
 
     // core gui
     play();
 
 error:
+    SDL_DestroyRenderer(Global.renderer);
+    SDL_DestroyWindow(Global.window);
+    TTF_CloseFont(Global.font);
+
+    TTF_Quit();
+    IMG_Quit();
+    SDL_Quit();
+
+    // 杀死线程
+    if (pthread_kill(Global.thread, 0) != ESRCH)
+    {
+        pthread_kill(Global.thread, SIGTERM);
+    }
+
+    // 销毁线程锁
+    pthread_mutex_destroy(&Global.lock);
+
     // 释放资源
     if (CHECK_FLAG(image_is_choice))
     {
@@ -85,13 +99,6 @@ error:
         SDL_FreeSurface(Global.surface);
         SDL_DestroyTexture(Global.texture);
     }
-    SDL_DestroyRenderer(Global.renderer);
-    SDL_DestroyWindow(Global.window);
-    TTF_CloseFont(Global.font);
-
-    TTF_Quit();
-    IMG_Quit();
-    SDL_Quit();
 
     // 关闭与facenet服务器的连接
     closeFaceNet();
@@ -110,15 +117,14 @@ error:
 /**
  * \brief 调用WindowsAPI选择图片
  */
-bool selectImage(wchar_t *path, size_t size)
+bool selectImageFile(wchar_t *path, size_t size)
 {
     OPENFILENAMEW ofn;
-    HWND hwnd = NULL;
     HANDLE hf;
 
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = hwnd;
+    ofn.hwndOwner = NULL;
     ofn.lpstrFile = path;
     ofn.lpstrFile[0] = L'\0';
     ofn.nMaxFile = size;
@@ -152,14 +158,15 @@ bool selectImage(wchar_t *path, size_t size)
 /**
  * \brief 加载人脸
  */
-bool loadFace()
+bool choiceImage()
 {
-    wchar_t path[MAX_PATH] = {0};
     int ret = 0;
-    char *buffer = NULL;
+
+    // 初始化
+    memset(Global.path, 0, sizeof(Global.path));
 
     // 选择图片
-    ret = selectImage(path, MAX_PATH);
+    ret = selectImageFile(Global.path, MAX_PATH);
     CHECK(ret == true, "未选择图片\n");
 
     // 清除原有数据
@@ -177,8 +184,8 @@ bool loadFace()
     }
 
     // 使用_wfopen函数打开文件
-    FILE *fp = _wfopen(path, L"rb");
-    CHECK(fp, "打开图片失败 : %s\n", path);
+    FILE *fp = _wfopen(Global.path, L"rb");
+    CHECK(fp, "打开图片失败 : %s\n", Global.path);
 
     // 获取文件大小
     fseek(fp, 0, SEEK_END);
@@ -186,44 +193,92 @@ bool loadFace()
     fseek(fp, 0, SEEK_SET);
 
     // 读取整个文件到内存
-    buffer = malloc(fsize + 1);
+    char *buffer = malloc(fsize + 1);
     fread(buffer, fsize, 1, fp);
     fclose(fp);
 
     // 读取图片Surface
-    Global.surface = IMG_Load_RW(SDL_RWFromMem(buffer, fsize), 1); // 第二个参数为1表示在读取后关闭SDL_RWops
+    Global.surface = IMG_Load_RW(SDL_RWFromMem(buffer, fsize), 1);
     free(buffer);
     CHECK(Global.surface, "读取图片失败 : %s\n", IMG_GetError());
+
+    // 转化图片格式到四通道
+    SDL_Surface *tmpSurface = SDL_ConvertSurfaceFormat(Global.surface, SDL_PIXELFORMAT_RGBA32, 0);
+    CHECK(tmpSurface, "转换图片格式失败 : %s\n", SDL_GetError());
+    SDL_FreeSurface(Global.surface);
+    Global.surface = tmpSurface;
+
+    // 设置Surface为圆角
+    setSurfaceRoundedBorder(Global.surface, 20, (SDL_Color){0xff, 0xff, 0xff, 255});
 
     // 读取图片Texture
     Global.texture = SDL_CreateTextureFromSurface(Global.renderer, Global.surface);
     CHECK(Global.texture, "创建图片纹理失败 : %s\n", SDL_GetError());
 
-    // 设置区域大小
+    // 调整图片大小
     resizeImage(&Global.windowRect, &Global.surfaceRect, Global.surface->w, Global.surface->h);
     Global.scale = (float)Global.surfaceRect.w / (float)Global.surface->w;
     Global.scale2 = 1.0f;
 
-    // 获取人脸特征向量
-    ret = getFaceVector(path, &Global.face);
-    CHECK(ret == true, "获取人脸特征向量失败\n");
-
-    if (0 < listLen(Global.face))
-    {
-        // 获取人脸信息
-        ret = getFaceInfo(Global.face);
-        CHECK(ret == true, "获取人脸信息失败\n");
-
-        // 渲染个人信息
-        ret = renderInfo();
-        CHECK(ret == true, "渲染个人信息失败\n");
-    }
-
-    DEB(else { DEBUG("未检测到人脸\n"); });
+    // 创建线程
+    setTh(true);
+    ret = pthread_create(&Global.thread, NULL, th, Global.path);
+    CHECK(ret == 0, "创建线程失败\n");
 
     // 设置已选择标志
     SET_FLAG(image_is_choice);
     return true;
 error:
     return false;
+}
+
+/**
+ * \brief 使用多线程加载数据
+ */
+void *th(void *arg)
+{
+    int ret = 0;
+
+    // 获取人脸特征向量
+    ret = getFaceVector((wchar_t *)arg, &Global.face);
+    CHECK(ret == true, "获取人脸特征向量失败\n");
+
+    // 如果检测到人脸
+    if (0 < listLen(Global.face))
+    {
+        // 获取人脸信息
+        ret = getFaceInfo(Global.face);
+        CHECK(ret == true, "获取人脸信息失败\n");
+    }
+
+    DEB(else { DEBUG("未检测到人脸\n"); });
+
+error:
+
+    // 设置线程结束标志
+    setTh(false);
+    return NULL;
+}
+
+/**
+ * \brief 访问线程使用标志
+ */
+bool getTh()
+{
+    bool ret;
+
+    pthread_mutex_lock(&Global.lock);
+    ret = Global.th;
+    pthread_mutex_unlock(&Global.lock);
+    return ret;
+}
+
+/**
+ * \brief 设置线程使用标志
+ */
+void setTh(bool flag)
+{
+    pthread_mutex_lock(&Global.lock);
+    Global.th = flag;
+    pthread_mutex_unlock(&Global.lock);
 }

@@ -34,6 +34,7 @@ int main()
     sm9_encrypt(&master, ID, strlen(ID), msg, strlen(msg) + 1, out, &size);
     printf("加密后:%s\n", out);
     printf("加密后长度:%d\n", size);
+    
     /* 解密 */
     sm9_decrypt(&key, ID, strlen(ID), out, size, msg, &size);
     printf("解密后:%s\n", msg);

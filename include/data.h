@@ -35,11 +35,30 @@
 #define CLEAR_FLAG(F) (Global.flag &= ~FLAG(F))
 enum
 {
-    image_is_choice = 0,
-    image_enter,
+    image_is_choice = 0, // 是否存在图片
+    image_enter,         // 图片是否按下
+    button_enter,        // 按钮是否按下
 
-    button_enter
+    button_In, // 上一个状态在按钮内
+
+    button_Select,           // 当前是否为按钮选中动画
+    button_Select_Start,     // 当前是否为按钮选中动画已初始化
+    button_Not_Select,       // 当前是否为按钮离开动画
+    button_Not_Select_Start, // 当前是否为按钮离开动画已初始化
+
+    button_Click,           // 当前是否为按钮点击动画
+    button_Click_Start,     // 当前是否为按钮点击动画已初始化
+    button_Not_Click,       // 当前是否为按钮松开动画
+    button_Not_Click_Start, // 当前是否为按钮松开动画已初始化
+
+    button_Wait,           // 当前是否为按钮等待动画
+    button_Wait_Start,     // 当前是否为按钮等待动画已初始化
+    button_Not_Wait,       // 当前是否为按钮等待动画
+    button_Not_Wait_Start, // 当前是否为按钮等待动画已初始化
 };
+
+// 线程使用状态的操作
+#define LOCK() pthread_mutex_lock(&Global.lock)
 
 typedef unsigned char byte;
 
@@ -86,6 +105,8 @@ struct _vector
 // 全局数据
 struct _Global
 {
+    wchar_t path[MAX_PATH]; // 图片路径
+
     SOCKET sock_s; // 远程服务端 socket
     SOCKET sock_f; // facenet端 socket
 
@@ -93,11 +114,13 @@ struct _Global
     SDL_Window *window;     // 窗口
     SDL_Renderer *renderer; // 渲染器
 
-    SDL_Rect windowRect;      // 窗口区域
-    SDL_FRect surfaceRect;    // 图片区域
-    SDL_FRect buttonRect;     // 按钮区域
-    SDL_FRect buttonMsgWRect; // 按钮信息区域
-    SDL_FRect buttonMsgHRect; // 按钮信息区域
+    SDL_Rect windowRect;   // 窗口区域
+    SDL_FRect surfaceRect; // 图片区域
+
+    SDL_FPoint buttonPoint;   // 按钮点
+    float buttonRadius;       // 按钮半径
+    SDL_FRect buttonMsgWRect; // 按钮十字区域
+    SDL_FRect buttonMsgHRect; // 按钮十字区域
 
     SDL_Surface *surface; // 照片Surface
     SDL_Texture *texture; // 照片Texture
@@ -108,6 +131,10 @@ struct _Global
     list *face;        // 人脸列表
     list *faceSurface; // 人脸Surface列表
     list *faceTexture; // 人脸Texture列表
+
+    pthread_t thread;     // 线程
+    bool th;              // 线程使用标志
+    pthread_mutex_t lock; // 互斥锁
 
     SM9_ENC_MASTER_KEY SM9master; // sm9主密钥
 

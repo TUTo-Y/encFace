@@ -159,7 +159,7 @@ bool getFaceVector(const wchar_t *image, list **head)
     while (true)
     {
         // 接受请求(size_t)
-        ret = recv(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, 0);
+        ret = recv(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
         CHECK(ret != SOCKET_ERROR, "接收请求失败 : %d\n", WSAGetLastError());
 
         // 检测是否结束
@@ -169,13 +169,13 @@ bool getFaceVector(const wchar_t *image, list **head)
         memset(&vec, 0, sizeof(vec));
 
         // 人物框位置(SDL_FRect)
-        ret = recv(Global.sock_f, (char *)&vec.rect, sizeof(vec.rect), 0);
+        ret = recv(Global.sock_f, (char *)&vec.rect, sizeof(vec.rect), MSG_WAITALL);
         CHECK(ret != SOCKET_ERROR, "接收人物框位置失败 : %d\n", WSAGetLastError());
         vec.rect.w -= vec.rect.x;
         vec.rect.h -= vec.rect.y;
 
         // 返回特征向量大小(size_t)
-        ret = recv(Global.sock_f, (char *)&size, sizeof(size), 0);
+        ret = recv(Global.sock_f, (char *)&size, sizeof(size), MSG_WAITALL);
         CHECK(ret != SOCKET_ERROR, "接收特征向量大小失败 : %d\n", WSAGetLastError());
 
         // 创建特征向量空间
@@ -183,7 +183,7 @@ bool getFaceVector(const wchar_t *image, list **head)
         CHECK(vec.v, "内存分配失败\n");
 
         // 返回特征向量数据(byte*)
-        ret = recv(Global.sock_f, (char *)vec.v->data, size, 0);
+        ret = recv(Global.sock_f, (char *)vec.v->data, size, MSG_WAITALL);
         CHECK(ret != SOCKET_ERROR, "接收特征向量数据失败 : %d\n", WSAGetLastError());
 
         // 添加到链表
@@ -275,13 +275,13 @@ bool getFaceInfo(list *face)
     {
         // 接受服务器回馈人物存在标志
         DEBUG("正在接受第%d个人脸数据\n", count + 1);
-        ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->flag), sizeof(int), 0);
+        ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->flag), sizeof(int), MSG_WAITALL);
         CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 接受服务器回馈flag失败 : %d\n", count + 1, WSAGetLastError());
 
         // 如果人物存在, 则接受人物信息
         if (((vector *)node->data)->flag == HV)
         {
-            ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->info), sizeof(msg), 0);
+            ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->info), sizeof(msg), MSG_WAITALL);
             CHECK(ret != SOCKET_ERROR, "在处理%d个人脸数据时, 接受服务器回馈msg失败 : %d\n", count + 1, WSAGetLastError());
         }
 

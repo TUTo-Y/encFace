@@ -95,7 +95,7 @@ int main()
         while (1)
         {
             size_t m;
-            recv(client_sockfd, &m, MSG_TYPE_SIZE, 0);
+            recv(client_sockfd, &m, MSG_TYPE_SIZE, MSG_WAITALL);
 
             // 退出
             if (m == MSG_CLOSE)
@@ -105,34 +105,34 @@ int main()
             size_t size;
             char *data;
 
-            recv(client_sockfd, &size, sizeof(size_t), 0);
+            recv(client_sockfd, &size, sizeof(size_t), MSG_WAITALL);
             printf("ID长度: %ld\n", size);
 
             data = malloc(size + 1);
-            recv(client_sockfd, data, size, 0);
+            recv(client_sockfd, data, size, MSG_WAITALL);
             data[size] = '\0';
             printf("身份ID: %s\n", (char *)data);
             free(data);
 
-            recv(client_sockfd, &size, sizeof(size_t), 0);
+            recv(client_sockfd, &size, sizeof(size_t), MSG_WAITALL);
             printf("人脸总数量: %ld\n", size);
 
             for (int i = 0; i < size; i++)
             {
                 printf("\n正在接受第%d个人脸数据\n", i + 1);
                 size_t n;
-                recv(client_sockfd, &n, sizeof(size_t), 0);
+                recv(client_sockfd, &n, sizeof(size_t), MSG_WAITALL);
                 printf("sm9加密后长度: %ld\n", n);
 
                 data = malloc(n);
-                recv(client_sockfd, data, n, 0);
+                recv(client_sockfd, data, n, MSG_WAITALL);
                 free(data);
 
-                recv(client_sockfd, &n, sizeof(size_t), 0);
+                recv(client_sockfd, &n, sizeof(size_t), MSG_WAITALL);
                 printf("ZUC加密后数据的长度: %ld\n", n);
 
                 data = malloc(n);
-                recv(client_sockfd, data, n, 0);
+                recv(client_sockfd, data, n, MSG_WAITALL);
                 free(data);
             }
 

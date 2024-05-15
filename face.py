@@ -29,13 +29,13 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
 
     # 检查文件是否存在
     if not os.path.exists(file):
-        s.send(struct.pack('Q', MSG_FACE_END))
+        s.sendall(struct.pack('Q', MSG_FACE_END))
         return None
     
     # 读取Image
     img = Image.open(file).convert('RGB')  # 将图像转换为RGB格式
     if img is None:
-        s.send(struct.pack('Q', MSG_FACE_END))
+        s.sendall(struct.pack('Q', MSG_FACE_END))
         return None
     
     # 对图片预处理
@@ -48,7 +48,7 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
     # 使用MTCNN检测人脸
     boxes, _ = mtcnn.detect(image)
     if boxes is None:
-        s.send(struct.pack('Q', MSG_FACE_END))
+        s.sendall(struct.pack('Q', MSG_FACE_END))
         return None
     
     # 向文件中写入特征向量的大小、box的数值和特征向量的值
@@ -73,10 +73,10 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
         print("正在处理第" + str(count+1) + "个人脸")
         
         # 发送人脸消息
-        s.send(struct.pack('Q', MSG_FACE))
+        s.sendall(struct.pack('Q', MSG_FACE))
         
         # 发送box数据
-        s.send(struct.pack('4f', box[0], box[1], box[2], box[3]))
+        s.sendall(struct.pack('4f', box[0], box[1], box[2], box[3]))
 
         # 使用InceptionResnetV1来获取人脸的特征向量
         embedding   = resnet(face_tensor.unsqueeze(0))
@@ -97,14 +97,14 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
         f.close()
 
         # 发送数据大小
-        s.send(struct.pack('Q', len(x_cipher_bytes)))
+        s.sendall(struct.pack('Q', len(x_cipher_bytes)))
         
         # 发送数据
-        s.send(x_cipher_bytes)
+        s.sendall(x_cipher_bytes)
         
         count += 1
             
-    s.send(struct.pack('Q', MSG_FACE_END))
+    s.sendall(struct.pack('Q', MSG_FACE_END))
     print('识别完成')
     
     if os.path.exists("tmp\\tmp"):
@@ -120,11 +120,11 @@ def main():
     
     # 初始化BGV
     parms = EncryptionParameters (scheme_type.bgv)
-    poly_modulus_degree = 2048 # 设置多项式模数的度
+    poly_modulus_degree = 8192
     parms.set_poly_modulus_degree(poly_modulus_degree)
-    parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree)) # 设置系数模数
-    parms.set_plain_modulus(PlainModulus.Batching(poly_modulus_degree, 40))
-    context = SEALContext(parms) # 创建SEAL上下文
+    parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree))
+    parms.set_plain_modulus(PlainModulus.Batching(poly_modulus_degree, 20))
+    context = SEALContext(parms)
     
     # 读取公钥
     public_key = PublicKey()
