@@ -11,9 +11,9 @@ threshold = 0.9
 face_embedding = []
 
 # 人数
-people_num = 200
+people_num = 3
 # 每个人的照片数量
-photo_num = 7
+photo_num = 3
 
 # 未检出出的人脸数量
 no_face = 0
@@ -37,14 +37,6 @@ O_diff = []
 mtcnn = MTCNN()
 # 创建InceptionResnetV1模型
 resnet = InceptionResnetV1(pretrained='vggface2').eval()
-
-
-def is_same_person(embedding1, embedding2):
-    global threshold
-    # 计算两个特征向量之间的欧氏距离
-    dist = distance.euclidean(embedding1, embedding2)
-    # 如果距离小于阈值，则认为是同一个人
-    return dist/1000000.0 < threshold
 
 def read_image(img_path):
     global no_face
@@ -120,9 +112,9 @@ print('\n')
 
 # 相同人的欧氏距离
 print('相同人的欧氏距离对比结果:')
-print('最小值:', min(O_same))
-print('最大值:', max(O_same))
-print('平均值:', sum(O_same) / len(O_same))
+print('最小值 :{:.3f}'.format(min(O_same)))
+print('最大值 :{:.3f}'.format(max(O_same)))
+print('平均值 :{:.3f}'.format(sum(O_same) / len(O_same)))
 print('0.0 <= 欧氏距离 < 0.1 : {:.3f}%'.format(100 * len([d for d in O_same if 0.0 <= d < 0.1]) / len(O_same)))
 print('0.1 <= 欧氏距离 < 0.2 : {:.3f}%'.format(100 * len([d for d in O_same if 0.1 <= d < 0.2]) / len(O_same)))
 print('0.2 <= 欧氏距离 < 0.3 : {:.3f}%'.format(100 * len([d for d in O_same if 0.2 <= d < 0.3]) / len(O_same)))
@@ -147,9 +139,9 @@ print('\n')
 
 # 相同人的欧氏距离
 print('不同人的欧氏距离对比结果:')
-print('最小值:', min(O_diff))
-print('最大值:', max(O_diff))
-print('平均值:', sum(O_diff) / len(O_diff))
+print('最小值 :{:.3f}'.format(min(O_diff)))
+print('最大值 :{:.3f}'.format(max(O_diff)))
+print('平均值 :{:.3f}'.format(sum(O_diff) / len(O_diff)))
 print('0.0 <= 欧氏距离 < 0.1 : {:.3f}%'.format(100 * len([d for d in O_diff if 0.0 <= d < 0.1]) / len(O_same)))
 print('0.1 <= 欧氏距离 < 0.2 : {:.3f}%'.format(100 * len([d for d in O_diff if 0.1 <= d < 0.2]) / len(O_same)))
 print('0.2 <= 欧氏距离 < 0.3 : {:.3f}%'.format(100 * len([d for d in O_diff if 0.2 <= d < 0.3]) / len(O_same)))
@@ -174,6 +166,8 @@ print('2.0 <= 欧氏距离 < 2.1 : {:.3f}%'.format(100 * len([d for d in O_diff 
 print('2.1 <= 欧氏距离 < 2.2 : {:.3f}%'.format(100 * len([d for d in O_diff if 2.1 <= d < 2.2]) / len(O_diff)))
 print('2.2 <= 欧氏距离 < 2.3 : {:.3f}%'.format(100 * len([d for d in O_diff if 2.2 <= d < 2.3]) / len(O_diff)))
 print('2.3 <= 欧氏距离 < 2.4 : {:.3f}%'.format(100 * len([d for d in O_diff if 2.3 <= d < 2.4]) / len(O_diff)))
+
+print('\n')
 
 # 总
 print('当阈值为' + str(threshold) + '时:')
