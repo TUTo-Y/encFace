@@ -37,10 +37,10 @@
 
 ## 目录
 
-examples目录下存放BGV和sm9加密的例子和BGV和SM9公密钥的生成代码
-external目录下存放依赖
-include目录下存放头文件
-src目录下存放源文件
-obj目录存放编译时临时文件
-test目录下存放测试文件
-tmp存放程序运行时的临时文件
+- examples目录下存放BGV和sm9加密的例子和BGV和SM9公密钥的生成代码
+- external目录下存放依赖
+- include目录下存放头文件
+- src目录下存放源文件
+- obj目录存放编译时临时文件
+- test目录下存放测试文件
+- tmp存放程序运行时的临时文件
