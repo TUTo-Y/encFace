@@ -29,10 +29,10 @@
 #define WOM 2 // sex标志  : 女性
 
 // 全局变量flag标志位
-#define FLAG(F) (0x1 << (F))
-#define CHECK_FLAG(F) (Global.flag & FLAG(F))
-#define SET_FLAG(F) (Global.flag |= FLAG(F))
-#define CLEAR_FLAG(F) (Global.flag &= ~FLAG(F))
+#define FLAG(F) (0x1 << (F))                    // 设置标识位
+#define CHECK_FLAG(F) (Global.flag & FLAG(F))   // 检测标志是否为1
+#define SET_FLAG(F) (Global.flag |= FLAG(F))    // 将标识标记为1
+#define CLEAR_FLAG(F) (Global.flag &= ~FLAG(F)) // 将标识标记为0
 enum
 {
     image_is_choice = 0, // 是否存在图片
