@@ -21,7 +21,7 @@
 使用C语言和python作为主要编程语言
 
 | C语言依赖                                             | 描述                                   |
-| ----------------------------------------------------- | -------------------------------------- |
+| ---- | ---- |
 | [MinGW](https://github.com/niXman/mingw-builds-binaries) | 作为C语言编译器                        |
 | [GmSSL](https://gitee.com/YoungWxy/GmSSL)                | 由北京大学自主开发的国产商用密码开源库 |
 | [SDL](https://github.com/libsdl-org/SDL)                 | 渲染界面                               |
@@ -29,13 +29,16 @@
 | [SDL_ttf](https://github.com/libsdl-org/SDL_ttf)         | 渲染字体                               |
 
 | python环境                                                  | 描述                                 |
-| ----------------------------------------------------------- | ------------------------------------ |
+| ---- | ---- |
+| [Python 3.12.0](https://www.python.org/downloads/windows/) | 程序运行的稳定python版本 |
 | [facenet_pytorch](https://github.com/timesler/facenet-pytorch) | 用于加载MTCNN和InceptionResnetV1模型 |
 | [SEAL-Python](https://github.com/Huelse/SEAL-Python)           | 用于实现BGV同态加密                  |
 
+python安装依赖`pip install --upgrade torch numpy opencv-python pillow facenet-pytorch`，SEAL需要单独编译[SEAL-Python](https://github.com/Huelse/SEAL-Python)
+
 ## MTCNN和InceptionResnetV1的识别测试
 
-在./test/face目录下存放了1400张人脸照片，包括200个人，每人7张照片，执行`python test.py`
+在 `./test/face` 目录下存放了1400张人脸照片，包括200个人，每人7张照片，执行 `python test.py`
 
 ## 目录
 
