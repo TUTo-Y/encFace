@@ -35,9 +35,9 @@ void sm4_set_decrypt_key(SM4_KEY *key, const uint8_t raw_key[SM4_KEY_SIZE]);
 void sm4_encrypt(const SM4_KEY *key, const uint8_t in[SM4_BLOCK_SIZE], uint8_t out[SM4_BLOCK_SIZE]);
 
 void sm4_encrypt_blocks(const SM4_KEY *key, const uint8_t *in, size_t nblocks, uint8_t *out);
-void sm4_cbc_encrypt_blocks(const SM4_KEY *key, const uint8_t iv[SM4_BLOCK_SIZE],
+void sm4_cbc_encrypt_blocks(const SM4_KEY *key, uint8_t iv[SM4_BLOCK_SIZE],
 	const uint8_t *in, size_t nblocks, uint8_t *out);
-void sm4_cbc_decrypt_blocks(const SM4_KEY *key, const uint8_t iv[SM4_BLOCK_SIZE],
+void sm4_cbc_decrypt_blocks(const SM4_KEY *key, uint8_t iv[SM4_BLOCK_SIZE],
 	const uint8_t *in, size_t nblocks, uint8_t *out);
 void sm4_ctr_encrypt_blocks(const SM4_KEY *key, uint8_t ctr[16], const uint8_t *in, size_t nblocks, uint8_t *out);
 void sm4_ctr32_encrypt_blocks(const SM4_KEY *key, uint8_t ctr[16], const uint8_t *in, size_t nblocks, uint8_t *out);
@@ -219,8 +219,9 @@ _gmssl_export int sm4_cfb_decrypt_finish(SM4_CFB_CTX *ctx, uint8_t *out, size_t 
 #ifdef ENABLE_SM4_CCM
 #define SM4_CCM_MIN_IV_SIZE 7
 #define SM4_CCM_MAX_IV_SIZE 13
-#define SM4_CCM_MIN_MAC_SIZE 4
-#define SM4_CCM_MAX_MAC_SIZE 16
+#define SM4_CCM_MIN_TAG_SIZE 4
+#define SM4_CCM_MAX_TAG_SIZE 16
+#define SM4_CCM_DEFAULT_TAG_SIZE 16
 
 // make sure inlen < 2^((15 - ivlen) * 8)
 _gmssl_export int sm4_ccm_encrypt(const SM4_KEY *sm4_key, const uint8_t *iv, size_t ivlen,

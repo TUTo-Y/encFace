@@ -1,6 +1,6 @@
 # 生成BGV公钥和私钥
 from seal import *
-from seal_helper import *
+# from seal_helper import *
 import numpy as np
 import io
 

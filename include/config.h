@@ -28,24 +28,28 @@
         }                     \
     } while (0)
 
-#define VERSION "encFace 1.0" // encFace版本
+#define VERSION "encFace 2.0" // encFace版本
 
-#define IP_S "192.168.232.131" // 远程服务器地址
-#define PORT_S 8080            // 远程服务器端口
-#define IP_F "127.0.0.1"       // facenet服务器地址
-#define PORT_F 8081            // facenet服务器端口
-
-#define USER_ID "adminTUTo" // 用户ID
+#define IP_S "127.0.0.1"      // 远程服务器地址
+#define IP_F "127.0.0.1"      // facenet服务器地址
+#define PORT_S 8080           // 远程服务器端口
+#define PORT_F 8081           // facenet服务器端口
+#define PYTHON_FACE "face.py" // facenet服务器脚本
 
 #define WINDOW_DEFAULT_WIDTH 1000 // 窗口默认宽度
 #define WINDOW_DEFAULT_HEIGHT 800 // 窗口默认高度
 
-#define PYTHON_FACE "face.py" // facenet服务器脚本
+#define USER_ID "adminTUTo" // 用户ID
 
 #define SM9_PUBLIC "master_public_key.pem" // sm9主公钥文件
 
+#define FPS 60              // 刷新率
+#define FPS_MS (1000 / FPS) // 每一帧的持续时间（毫秒）
+
+#define TO32(size) (((size) + 3) & ~3) // 将不关于4字节对齐的数字转化为关于4字节对齐的数字
+
 #define TTF_PATH "ttf.ttc" // 字体文件
 
-#define CIRCLE_FILE "white.png" // 白色的圆
+#define TEAM_IMAGE "team.jpg" // 团队图片
 
 #endif // _CONFIG_H

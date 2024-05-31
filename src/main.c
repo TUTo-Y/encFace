@@ -1,23 +1,19 @@
 #include "main.h"
 
 #undef main
+
 int main(int argc, char *argv[])
 {
-    WSADATA wsaData; // winsocket数据
     int ret;
 
     /************* 初始化设置 *************/
     srand(time(NULL));
 
-    // 设置调试控制台支持字符
-    DEB(SetConsoleOutputCP(CP_UTF8));
+    // 初始化gtk
+    gtk_init(&argc, &argv);
 
-    // 初始化线程锁
-    pthread_mutex_init(&Global.lock, NULL);
-
-    // 初始化wsaData
-    ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    CHECK(ret == 0, "无法初始化winsocket : %d\n", WSAGetLastError());
+    // // 设置调试控制台支持字符
+    // DEB(SetConsoleOutputCP(CP_UTF8));
 
     // 初始化与远程服务器的连接
     DEBUG("正在连接到远程服务器...\n");
@@ -28,6 +24,9 @@ int main(int argc, char *argv[])
     DEBUG("正在连接到facenet服务器...\n");
     ret = connectFaceNet();
     CHECK(ret == true, "无法连接到facenet服务器\n");
+
+    // 初始化线程锁
+    pthread_mutex_init(&Global.lock, NULL);
 
     // 读取sm9主公钥
     DEBUG("加载sm9主公钥...\n");
@@ -46,59 +45,20 @@ int main(int argc, char *argv[])
     Global.font = TTF_OpenFont(TTF_PATH, 24);
     CHECK(Global.font != NULL, "TTF_OpenFont: %s\n", TTF_GetError());
 
-    // 创建窗口
-    Global.window = SDL_CreateWindow("encFace", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    CHECK(Global.window != NULL, "创建窗口失败 : %s\n", SDL_GetError());
-
-    // 设置窗口的最小大小
-    SDL_SetWindowMinimumSize(Global.window, 400, 400);
-
-    // 创建渲染器
-    Global.renderer = SDL_CreateRenderer(Global.window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    CHECK(Global.renderer != NULL, "创建渲染器失败 : %s\n", SDL_GetError());
-
-    // 设置渲染器
-    ret = SDL_SetRenderDrawBlendMode(Global.renderer, SDL_BLENDMODE_BLEND);
-    CHECK(ret == 0, "设置渲染器错误 : %s\n", SDL_GetError());
-
-    // 初始化窗口全局数据
-    SDL_GetWindowPosition(Global.window, &Global.windowRect.x, &Global.windowRect.y);
-    Global.windowRect.w = WINDOW_DEFAULT_WIDTH;
-    Global.windowRect.h = WINDOW_DEFAULT_HEIGHT;
-
-    // 设置按钮区域
-    resetButton();
-
     // core gui
-    play();
+    gui_play();
 
 error:
-    SDL_DestroyRenderer(Global.renderer);
-    SDL_DestroyWindow(Global.window);
+    // 销毁字体
     TTF_CloseFont(Global.font);
 
+    // 结束SDL
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();
 
-    // 杀死线程
-    if (pthread_kill(Global.thread, 0) != ESRCH)
-    {
-        pthread_kill(Global.thread, SIGTERM);
-    }
-
     // 销毁线程锁
     pthread_mutex_destroy(&Global.lock);
-
-    // 释放资源
-    if (CHECK_FLAG(image_is_choice))
-    {
-        listFree(&Global.face, (void (*)(void *))freeVector);
-        listFree(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
-        listFree(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
-        SDL_FreeSurface(Global.surface);
-        SDL_DestroyTexture(Global.texture);
-    }
 
     // 关闭与facenet服务器的连接
     closeFaceNet();
@@ -106,179 +66,177 @@ error:
     // 关闭与远程服务器的连接
     closeServer();
 
-    // 释放wsaData
-    WSACleanup();
-
-    // 退出
-    DEB(system("pause"));
     return 0;
 }
 
-/**
- * \brief 调用WindowsAPI选择图片
- */
-bool selectImageFile(wchar_t *path, size_t size)
+void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
-    OPENFILENAMEW ofn;
-    HANDLE hf;
+    char *path = (char *)data;
+    size_t size = PATH_MAX;
 
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = NULL;
-    ofn.lpstrFile = path;
-    ofn.lpstrFile[0] = L'\0';
-    ofn.nMaxFile = size;
-    ofn.lpstrFilter = L"Image\0*.BMP;*.GIF;*.JPG;*.JPEG;*.LBM;*.PCX;*.PNG;*.PNM;*.SVG;*.TGA;*.TIFF;*.WEBP;*.XCF;*.XPM;*.XV\0\0";
-    ofn.nFilterIndex = 1;
-    ofn.lpstrFileTitle = NULL;
-    ofn.nMaxFileTitle = 0;
-    ofn.lpstrInitialDir = NULL;
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-    if (GetOpenFileNameW(&ofn) == TRUE)
+    // 获取文件路径
+    if (response_id == GTK_RESPONSE_ACCEPT)
     {
-        // 检查文件是否存在
-        hf = CreateFileW(ofn.lpstrFile,
-                         GENERIC_READ,
-                         0,
-                         (LPSECURITY_ATTRIBUTES)NULL,
-                         OPEN_EXISTING,
-                         FILE_ATTRIBUTE_NORMAL,
-                         (HANDLE)NULL);
-        // 文件存在
-        if (hf != INVALID_HANDLE_VALUE)
-        {
-            CloseHandle(hf);
-            return true;
-        }
+        GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
+
+        char *filename;
+        filename = gtk_file_chooser_get_filename(chooser);
+        g_strlcpy(path, filename, size);
+        g_free(filename);
     }
-    return false;
+
+    // 销毁对话框
+    gtk_widget_destroy(GTK_WIDGET(dialog));
 }
 
-/**
- * \brief 加载人脸
- */
-bool choiceImage()
+bool selectImageFile(char *path, size_t size)
+{
+    GtkWidget *dialog;
+    gint res;
+
+    // 初始化
+    *path = '\0';
+
+    // 创建文件选择对话框
+    dialog = gtk_file_chooser_dialog_new("选择图片文件",
+                                         NULL,
+                                         GTK_FILE_CHOOSER_ACTION_OPEN,
+                                         "取消",
+                                         GTK_RESPONSE_CANCEL,
+                                         "选择",
+                                         GTK_RESPONSE_ACCEPT,
+                                         NULL);
+    // 设置文件选择对话框属性
+    GtkFileFilter *filter = gtk_file_filter_new();
+    gtk_file_filter_set_name(GTK_FILE_FILTER(filter), "图片文件");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Bb][Mm][Pp]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Gg][Ii][Ff]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Jj][Pp][Gg]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Jj][Pp][Ee][Gg]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Ll][Bb][Mm]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Pp][Cc][Xx]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Pp][Nn][Gg]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Pp][Nn][Mm]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Ss][Vv][Gg]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Tt][Gg][Aa]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Tt][Ii][Ff][Ff]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Ww][Ee][Bb][Pp]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Xx][Cc][Ff]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Xx][Pp][Mm]");
+    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Xx][Vv]");
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
+    g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(on_dialog_response), path);
+    g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(gtk_main_quit), NULL);
+
+    // 显示文件选择对话框
+    gtk_widget_show(dialog);
+    gtk_main();
+
+    return *path != '\0';
+}
+
+bool choiceImage(
+                 const SDL_Rect *windowRect,
+                 SDL_Renderer *renderer,
+                 SDL_Surface **surface, SDL_Texture **texture,
+                 SDL_FRect *surfaceRect, float *scale, float *scale2,
+                 list **face, list **faceSurface, list **faceTexture)
 {
     int ret = 0;
-
+    SDL_Surface *tmpSurface = NULL;
+    
     // 初始化
     memset(Global.path, 0, sizeof(Global.path));
 
     // 选择图片
-    ret = selectImageFile(Global.path, MAX_PATH);
+    ret = selectImageFile(Global.path, sizeof(Global.path));
     CHECK(ret == true, "未选择图片\n");
 
     // 清除原有数据
     if (CHECK_FLAG(image_is_choice))
     {
         // 释放资源
-        listFree(&Global.face, (void (*)(void *))freeVector);
-        listFree(&Global.faceSurface, (void (*)(void *))SDL_FreeSurface);
-        listFree(&Global.faceTexture, (void (*)(void *))SDL_DestroyTexture);
-        SDL_FreeSurface(Global.surface);
-        SDL_DestroyTexture(Global.texture);
+        listFree(face, (void (*)(void *))freeVector);
+        listFree(faceSurface, (void (*)(void *))SDL_FreeSurface);
+        listFree(faceTexture, (void (*)(void *))SDL_DestroyTexture);
+        SDL_FreeSurface(*surface);
+        SDL_DestroyTexture(*texture);
 
         // 清除标志
         CLEAR_FLAG(image_is_choice);
     }
 
-    // 使用_wfopen函数打开文件
-    FILE *fp = _wfopen(Global.path, L"rb");
-    CHECK(fp, "打开图片失败 : %s\n", Global.path);
-
-    // 获取文件大小
-    fseek(fp, 0, SEEK_END);
-    long fsize = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    // 读取整个文件到内存
-    char *buffer = malloc(fsize + 1);
-    fread(buffer, fsize, 1, fp);
-    fclose(fp);
-
     // 读取图片Surface
-    Global.surface = IMG_Load_RW(SDL_RWFromMem(buffer, fsize), 1);
-    free(buffer);
-    CHECK(Global.surface, "读取图片失败 : %s\n", IMG_GetError());
+    tmpSurface = IMG_Load_RW(SDL_RWFromFile(Global.path, "rb"), 1);
+    CHECK(tmpSurface, "无法读取图片文件 : %s\n", IMG_GetError());
 
     // 转化图片格式到四通道
-    SDL_Surface *tmpSurface = SDL_ConvertSurfaceFormat(Global.surface, SDL_PIXELFORMAT_RGBA32, 0);
-    CHECK(tmpSurface, "转换图片格式失败 : %s\n", SDL_GetError());
-    SDL_FreeSurface(Global.surface);
-    Global.surface = tmpSurface;
-
-    // 设置Surface为圆角
-    setSurfaceRoundedBorder(Global.surface, 20, (SDL_Color){0xff, 0xff, 0xff, 255});
+    *surface = SDL_ConvertSurfaceFormat(tmpSurface, SDL_PIXELFORMAT_RGBA32, 0);
+    CHECK(*surface, "转换图片格式失败 : %s\n", SDL_GetError());
+    SDL_FreeSurface(tmpSurface);
 
     // 读取图片Texture
-    Global.texture = SDL_CreateTextureFromSurface(Global.renderer, Global.surface);
-    CHECK(Global.texture, "创建图片纹理失败 : %s\n", SDL_GetError());
+    *texture = SDL_CreateTextureFromSurface(renderer, *surface);
+    CHECK(*texture, "创建图片纹理失败 : %s\n", SDL_GetError());
 
-    // 调整图片大小
-    resizeImage(&Global.windowRect, &Global.surfaceRect, Global.surface->w, Global.surface->h);
-    Global.scale = (float)Global.surfaceRect.w / (float)Global.surface->w;
-    Global.scale2 = 1.0f;
+    // 调整图片大小和缩放
+    resizeImage(windowRect, surfaceRect, (*surface)->w, (*surface)->h);
+    *scale = surfaceRect->w / (*surface)->w;
+    *scale2 = 1.0f;
 
     // 创建线程
-    setTh(true);
-    ret = pthread_create(&Global.thread, NULL, th, Global.path);
+    setThread(true);
+    ret = pthread_create(&Global.thread, NULL, th, face);
     CHECK(ret == 0, "创建线程失败\n");
 
     // 设置已选择标志
     SET_FLAG(image_is_choice);
     return true;
+
 error:
+    if (tmpSurface)
+        SDL_FreeSurface(tmpSurface);
     return false;
 }
 
-/**
- * \brief 使用多线程加载数据
- */
 void *th(void *arg)
 {
     int ret = 0;
 
     // 获取人脸特征向量
-    ret = getFaceVector((wchar_t *)arg, &Global.face);
+    ret = getFaceVector(Global.path, (list**)arg);
     CHECK(ret == true, "获取人脸特征向量失败\n");
 
     // 如果检测到人脸
-    if (0 < listLen(Global.face))
+    if (0 < listLen(*(list**)arg))
     {
         // 获取人脸信息
-        ret = getFaceInfo(Global.face);
+        ret = getFaceInfo(*(list**)arg);
         CHECK(ret == true, "获取人脸信息失败\n");
     }
 
     DEB(else { DEBUG("未检测到人脸\n"); });
 
 error:
-
-    // 设置线程结束标志
-    setTh(false);
+    setThread(false);
     return NULL;
 }
 
-/**
- * \brief 访问线程使用标志
- */
-bool getTh()
+
+// 检查线程是否存在
+bool getThread()
 {
     bool ret;
-
     pthread_mutex_lock(&Global.lock);
-    ret = Global.th;
+    ret = Global.thread_status != 0;
     pthread_mutex_unlock(&Global.lock);
     return ret;
 }
 
-/**
- * \brief 设置线程使用标志
- */
-void setTh(bool flag)
+// 设置线程状态
+void setThread(bool status)
 {
     pthread_mutex_lock(&Global.lock);
-    Global.th = flag;
+    Global.thread_status = status;
     pthread_mutex_unlock(&Global.lock);
 }

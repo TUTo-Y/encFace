@@ -12,8 +12,6 @@
 
 #include "data.h"
 
-#define TO32(size) (((size) + 3) & ~3) // 将不关于4字节对齐的数字转化为关于4字节对齐的数字
-
 /**
  * \brief ZUC加密函数
  * \param msg 需要加密的数据

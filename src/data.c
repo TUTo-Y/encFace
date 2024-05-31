@@ -1,7 +1,7 @@
 #include "data.h"
 
 // 全局数据
-struct _Global Global = {0};
+struct _Global Global = { 0 };
 
 /**
  * \brief 向链表中添加一个数据

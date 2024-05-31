@@ -8,15 +8,16 @@ eINCDIR	=	external/include
 SOURCE	=	$(wildcard $(SRCDIR)/*.c)
 OBJECT	=	$(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCE))
 HANDLE	=	$(wildcard $(INCDIR)/*.h)
-CFLAGS  =  -I$(INCDIR) -I$(eINCDIR) -L$(eLIBDIR)
-CFLAGS  += -lSDL2 -lSDL2main -lSDL2_image -lSDL2_ttf -lcomdlg32 -lGmSSL -lws2_32 -lm
+CFLAGS  =  -I$(INCDIR) -I$(eINCDIR) -L$(eLIBDIR) -g
+CFLAGS  += -lSDL2 -lSDL2main -lSDL2_image -lSDL2_ttf -lgmssl -lm
+CFLAGS  += `pkg-config --cflags gtk+-3.0` `pkg-config --libs gtk+-3.0`
 TARGET	=	encFace
 
 # 检查CFLAGS是否包含-g参数
 ifneq (,$(findstring -g,$(CFLAGS)))
 CFLAGS += -D_DEBUG
 else
-CFLAGS += -mwindows
+# CFLAGS += -mwindows
 endif
 
 $(TARGET):$(OBJECT)

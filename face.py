@@ -25,9 +25,8 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
     file_len = struct.unpack('Q', s.recv(8))[0]
     
     # 接受文件名
-    print("接收文件名")
-    file = s.recv(file_len).decode('utf-16')
-
+    file = s.recv(file_len).decode('utf-8')
+    
     # 检查文件是否存在
     if not os.path.exists(file):
         s.sendall(struct.pack('Q', MSG_FACE_END))
@@ -71,8 +70,6 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
         if face_tensor is None:
             continue
         
-        print("正在处理第" + str(count+1) + "个人脸")
-        
         # 发送人脸消息
         s.sendall(struct.pack('Q', MSG_FACE))
         
@@ -106,7 +103,6 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
         count += 1
             
     s.sendall(struct.pack('Q', MSG_FACE_END))
-    print('识别完成')
     
     if os.path.exists("tmp\\tmp"):
         os.remove("tmp\\tmp")

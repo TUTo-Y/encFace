@@ -107,13 +107,33 @@ struct _Global
     int sock_s; // 远程服务端 socket
     int sock_f; // facenet端 socket
 
-    TTF_Font *font; // 字体
+    TTF_Font *font;         // 字体
+    // SDL_Window *window;     // 窗口
+    // SDL_Renderer *renderer; // 渲染器
 
-    SM9_ENC_MASTER_KEY SM9master; // sm9主密钥
+    // SDL_Rect windowRect;   // 窗口区域
+    // SDL_FRect surfaceRect; // 图片区域
+
+    // SDL_FPoint buttonPoint;   // 按钮点
+    // float buttonRadius;       // 按钮半径
+    // SDL_FRect buttonMsgWRect; // 按钮十字区域
+    // SDL_FRect buttonMsgHRect; // 按钮十字区域
+
+    // SDL_Surface *surface; // 照片Surface
+    // SDL_Texture *texture; // 照片Texture
+
+    // float scale;  // 图片缩放比例(修正宽度比原图像宽度的比例)
+    // float scale2; // 图片二次缩放比例
+
+    // list *face;        // 人脸列表
+    // list *faceSurface; // 人脸Surface列表
+    // list *faceTexture; // 人脸Texture列表
 
     pthread_t thread;     // 线程
-    bool thread_status;   // 线程状态, 线程是否存在
+    // bool th;              // 线程使用标志
     pthread_mutex_t lock; // 互斥锁
+
+    SM9_ENC_MASTER_KEY SM9master; // sm9主密钥
 
     size_t flag; // 标志
 };

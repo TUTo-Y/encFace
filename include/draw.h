@@ -5,25 +5,22 @@
 #define _DRAW_H
 
 #include <math.h>
-#include <stdio.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 
-#include "config.h"
 #include "data.h"
 
-#define PI  3.1415926f
-
+#define PI 3.1415926f
+#ifndef MAX
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-// 获取最大长度，用于处理人物名片
-#define MAX_OF_THREE(a, b, c) (MAX(MAX(a, b), c))
+#endif
 
-/**
- * \brief 设置圆角边框
-*/
-void setSurfaceRoundedBorder(SDL_Surface *surface, int radius, SDL_Color color);
+// 获取最大长度
+#define MAX_OF_THREE(a, b, c) MAX(MAX(a, b), c)
+// 获取最小长度
+#define MIN_OF_THREE(a, b, c) MIN(MIN(a, b), c)
 
 /**
  * \brief 绘制圆
@@ -31,19 +28,62 @@ void setSurfaceRoundedBorder(SDL_Surface *surface, int radius, SDL_Color color);
 void drawCircle(SDL_Renderer *renderer, float centerX, float centerY, float radius, SDL_Color *color);
 
 /**
- * \brief 绘制八个对称小球
- * \param centerX 圆心x
- * \param centerY 圆心y
- * \param radius 大圆的半径
+ * \brief 绘制n个对称小球
+ * \param centerX 大圆心x
+ * \param centerY 大圆心y
+ * \param R 大圆的半径
  * \param r 小圆的半径
- * \param O 八个小球的旋转角度
  * \param color 颜色指针
+ * \param O 小球的旋转角度
+ * \param n 小球个数
  */
-void drawCircle8(SDL_Renderer *renderer, float centerX, float centerY, float radius, float r, float O, SDL_Color *color);
+void drawCircleN(SDL_Renderer *renderer, float centerX, float centerY, float R, float r, SDL_Color *color, float O, int n);
 
 /**
- * \brief 将用户信息渲染成Surface
+ * \brief 绘制抗锯齿的圆角边框
+ * \param renderer 渲染器
+ * \param texture 纹理
+ * \param dstrect 渲染目标矩形
+ * \param radius 半径, 在0-1之间，表示占矩形边长的比例
  */
-bool renderInfo2Surface();
+void drawRoundedBorderTextureF(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_FRect *dstrect, float radius);
+
+/**
+ * \brief 渲染用户信息
+ */
+bool renderInfo2Surface(SDL_Renderer *renderer, list *face, list **faceTexture, list **faceSurface);
+
+/**
+ * \brief 检测点位置是否在圆上
+ * \param point 点
+ * \param x 圆的x
+ * \param y 圆的y
+ * \param r 圆的z
+ * \return 是否在圆形区域内
+ */
+bool checkPointInCircle(SDL_FPoint point, float x, float y, float r);
+
+/**
+ * \brief 将图片缩放到指定区间
+ * \param total 总区间
+ * \param dRect 目标区间
+ * \param w 图片宽度
+ * \param h 图片高度
+ */
+void resizeImage(const SDL_Rect *total, SDL_FRect *dRect, int w, int h);
+
+/**
+ * \brief 生成一个圆角边框的texture的渲染数据
+ * \param texture (可选) 纹理
+ * \param textureW (可选) 纹理宽度
+ * \param textureH (可选) 纹理高度
+ * \param dstrect 渲染目标矩形
+ * \param radius 半径, 在0-1之间
+ * \param index (返回) 索引数组
+ * \param vertex (返回) 顶点数组
+ * \warning texture和textureW/H至少存在一个
+ * \warning radius会根据最小边长自动调整
+*/
+void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SDL_FRect *dstrect, float radius, data **index, data **vertex);
 
 #endif // _DRAW_H

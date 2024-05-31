@@ -1,11 +1,15 @@
 #ifndef _WEB_H
 #define _WEB_H
 
+#include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
-#include <winsock2.h>
-#include <windows.h>
+#include <sys/time.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "config.h"
 #include "enc.h"
@@ -75,7 +79,7 @@ void closeFaceNet();
  * \param head 链表头指针
  * \return 是否成功提取特征向量
  */
-bool getFaceVector(const wchar_t *image, list **head);
+bool getFaceVector(const char *file, list **head);
 
 /**
  * \brief 通过人脸特征向量获取人脸信息
