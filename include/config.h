@@ -36,8 +36,11 @@
 #define PORT_F 8081           // facenet服务器端口
 #define PYTHON_FACE "face.py" // facenet服务器脚本
 
-#define WINDOW_DEFAULT_WIDTH 1000 // 窗口默认宽度
-#define WINDOW_DEFAULT_HEIGHT 800 // 窗口默认高度
+#define WINDOW_PLAY_DEFAULT_WIDTH 1000 // play窗口默认宽度
+#define WINDOW_PLAY_DEFAULT_HEIGHT 800 // play窗口默认高度
+// 1.7802
+#define WINDOW_LOGIN_DEFAULT_WIDTH 1000 // login窗口默认宽度
+#define WINDOW_LOGIN_DEFAULT_HEIGHT 560 // login窗口默认高度
 
 #define USER_ID "adminTUTo" // 用户ID
 
@@ -51,5 +54,6 @@
 #define TTF_PATH "ttf.ttc" // 字体文件
 
 #define TEAM_IMAGE "team.jpg" // 团队图片
+#define LOGIN_BACK_IMAGE "login.jpg" // 登录背景图片
 
 #endif // _CONFIG_H

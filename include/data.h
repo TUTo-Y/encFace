@@ -39,26 +39,26 @@
 #define CLEAR_FLAG(F) (Global.flag &= ~FLAG(F)) // 将标识标记为0
 enum
 {
-    image_is_choice = 0, // 是否存在图片
-    image_enter,         // 图片是否按下
-    button_enter,        // 按钮是否按下
+    flag_start = 0,
+    image_enter,  // 图片是否按下
+    button_enter, // 按钮是否按下
 
-    button_In, // 状态是否在按钮内
+    button_In, // 是否在按钮内
 
-    button_Select,           // 当前是否为按钮选中动画
-    button_Select_Start,     // 当前是否为按钮选中动画已初始化
-    button_Not_Select,       // 当前是否为按钮离开动画
-    button_Not_Select_Start, // 当前是否为按钮离开动画已初始化
+    button_Select,           // 按钮选中动画
+    button_Select_Start,     // 按钮选中动画(初始化状态)
+    button_Not_Select,       // 按钮离开动画
+    button_Not_Select_Start, // 按钮离开动画(初始化状态)
 
-    button_Click,           // 当前是否为按钮点击动画
-    button_Click_Start,     // 当前是否为按钮点击动画已初始化
-    button_Not_Click,       // 当前是否为按钮松开动画
-    button_Not_Click_Start, // 当前是否为按钮松开动画已初始化
+    button_Click,           // 按钮点击动画
+    button_Click_Start,     // 按钮点击动画(初始化状态)
+    button_Not_Click,       // 按钮松开动画
+    button_Not_Click_Start, // 按钮松开动画(初始化状态)
 
-    button_Wait,           // 当前是否为按钮等待动画
-    button_Wait_Start,     // 当前是否为按钮等待动画已初始化
-    button_Not_Wait,       // 当前是否为按钮等待动画
-    button_Not_Wait_Start, // 当前是否为按钮等待动画已初始化
+    button_Wait,           // 按钮等待动画
+    button_Wait_Start,     // 按钮等待动画(初始化状态)
+    // button_Not_Wait,       // 按钮等待动画
+    button_Not_Wait_Start, // 按钮等待动画(初始化状态)
 };
 
 typedef unsigned char byte;

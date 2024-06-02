@@ -129,6 +129,12 @@ bool getFaceVector(const char *file, list **head)
     size_t size = 0;
     MSG_TYPE msgs = 0;
 
+    // 检查参数
+    CHECK(file && head, "文件名为空\n");
+    
+    // 初始化
+    listFree(head, (void (*)(void *))freeVector);
+
     // 向facenet服务器发送请求(size_t)
     msgs = MSG_GET_FACE_VECTOR;
     ret = send(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, 0);

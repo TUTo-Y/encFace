@@ -46,7 +46,8 @@ int main(int argc, char *argv[])
     CHECK(Global.font != NULL, "TTF_OpenFont: %s\n", TTF_GetError());
 
     // core gui
-    gui_play();
+    // gui_play();
+    gui_login();
 
 error:
     // 销毁字体
@@ -69,7 +70,7 @@ error:
     return 0;
 }
 
-void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
+static void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
     char *path = (char *)data;
     size_t size = PATH_MAX;
@@ -134,94 +135,6 @@ bool selectImageFile(char *path, size_t size)
 
     return *path != '\0';
 }
-
-bool choiceImage(
-                 const SDL_Rect *windowRect,
-                 SDL_Renderer *renderer,
-                 SDL_Surface **surface, SDL_Texture **texture,
-                 SDL_FRect *surfaceRect, float *scale, float *scale2,
-                 list **face, list **faceSurface, list **faceTexture)
-{
-    int ret = 0;
-    SDL_Surface *tmpSurface = NULL;
-    
-    // 初始化
-    memset(Global.path, 0, sizeof(Global.path));
-
-    // 选择图片
-    ret = selectImageFile(Global.path, sizeof(Global.path));
-    CHECK(ret == true, "未选择图片\n");
-
-    // 清除原有数据
-    if (CHECK_FLAG(image_is_choice))
-    {
-        // 释放资源
-        listFree(face, (void (*)(void *))freeVector);
-        listFree(faceSurface, (void (*)(void *))SDL_FreeSurface);
-        listFree(faceTexture, (void (*)(void *))SDL_DestroyTexture);
-        SDL_FreeSurface(*surface);
-        SDL_DestroyTexture(*texture);
-
-        // 清除标志
-        CLEAR_FLAG(image_is_choice);
-    }
-
-    // 读取图片Surface
-    tmpSurface = IMG_Load_RW(SDL_RWFromFile(Global.path, "rb"), 1);
-    CHECK(tmpSurface, "无法读取图片文件 : %s\n", IMG_GetError());
-
-    // 转化图片格式到四通道
-    *surface = SDL_ConvertSurfaceFormat(tmpSurface, SDL_PIXELFORMAT_RGBA32, 0);
-    CHECK(*surface, "转换图片格式失败 : %s\n", SDL_GetError());
-    SDL_FreeSurface(tmpSurface);
-
-    // 读取图片Texture
-    *texture = SDL_CreateTextureFromSurface(renderer, *surface);
-    CHECK(*texture, "创建图片纹理失败 : %s\n", SDL_GetError());
-
-    // 调整图片大小和缩放
-    resizeImage(windowRect, surfaceRect, (*surface)->w, (*surface)->h);
-    *scale = surfaceRect->w / (*surface)->w;
-    *scale2 = 1.0f;
-
-    // 创建线程
-    setThread(true);
-    ret = pthread_create(&Global.thread, NULL, th, face);
-    CHECK(ret == 0, "创建线程失败\n");
-
-    // 设置已选择标志
-    SET_FLAG(image_is_choice);
-    return true;
-
-error:
-    if (tmpSurface)
-        SDL_FreeSurface(tmpSurface);
-    return false;
-}
-
-void *th(void *arg)
-{
-    int ret = 0;
-
-    // 获取人脸特征向量
-    ret = getFaceVector(Global.path, (list**)arg);
-    CHECK(ret == true, "获取人脸特征向量失败\n");
-
-    // 如果检测到人脸
-    if (0 < listLen(*(list**)arg))
-    {
-        // 获取人脸信息
-        ret = getFaceInfo(*(list**)arg);
-        CHECK(ret == true, "获取人脸信息失败\n");
-    }
-
-    DEB(else { DEBUG("未检测到人脸\n"); });
-
-error:
-    setThread(false);
-    return NULL;
-}
-
 
 // 检查线程是否存在
 bool getThread()

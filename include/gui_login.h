@@ -1,5 +1,5 @@
-#ifndef _GUI_PLAY_H
-#define _GUI_PLAY_H
+#ifndef _GUI_LOGIN_H
+#define _GUI_LOGIN_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,10 +11,11 @@
 #include "main.h"
 #include "draw.h"
 
+
 /**
- * \brief gui_play界面
+ * \brief gui_login界面
  */
-void gui_play();
+void gui_login();
 
 
-#endif // _GUI_PLAY_H
+#endif // _GUI_LOGIN_H

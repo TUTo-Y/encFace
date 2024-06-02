@@ -22,10 +22,26 @@
 // 获取最小长度
 #define MIN_OF_THREE(a, b, c) MIN(MIN(a, b), c)
 
+// EBO
+typedef struct _ebo ebo;
+struct _ebo
+{
+    data *vertex; // 顶点数据(VAO)
+    data *index;  // 索引数据(VBO)
+};
+
+// 通过EBO渲染
+#define drawFromEBO(renderer, texture, ebo) SDL_RenderGeometry(renderer, texture, (SDL_Vertex *)((ebo).vertex->data), (ebo).vertex->size / sizeof(SDL_Vertex), (int *)((ebo).index->data), (ebo).index->size / sizeof(int));
+
 /**
- * \brief 绘制圆
+ * \brief 绘制抗锯齿圆
+ * \param renderer 渲染器
+ * \param centerX 圆心x
+ * \param centerY 圆心y
+ * \param radius 半径
+ * \param color 颜色
  */
-void drawCircle(SDL_Renderer *renderer, float centerX, float centerY, float radius, SDL_Color *color);
+void drawCircle(SDL_Renderer *renderer, float centerX, float centerY, float radius, SDL_Color color);
 
 /**
  * \brief 绘制n个对称小球
@@ -34,24 +50,10 @@ void drawCircle(SDL_Renderer *renderer, float centerX, float centerY, float radi
  * \param R 大圆的半径
  * \param r 小圆的半径
  * \param color 颜色指针
- * \param O 小球的旋转角度
+ * \param O 小球的初始化旋转角度
  * \param n 小球个数
  */
 void drawCircleN(SDL_Renderer *renderer, float centerX, float centerY, float R, float r, SDL_Color *color, float O, int n);
-
-/**
- * \brief 绘制抗锯齿的圆角边框
- * \param renderer 渲染器
- * \param texture 纹理
- * \param dstrect 渲染目标矩形
- * \param radius 半径, 在0-1之间，表示占矩形边长的比例
- */
-void drawRoundedBorderTextureF(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_FRect *dstrect, float radius);
-
-/**
- * \brief 渲染用户信息
- */
-bool renderInfo2Surface(SDL_Renderer *renderer, list *face, list **faceTexture, list **faceSurface);
 
 /**
  * \brief 检测点位置是否在圆上
@@ -73,17 +75,22 @@ bool checkPointInCircle(SDL_FPoint point, float x, float y, float r);
 void resizeImage(const SDL_Rect *total, SDL_FRect *dRect, int w, int h);
 
 /**
+ * \brief 删除渲染数据
+ * \param ebo 渲染数据
+ */
+void freeEBO(ebo *ebo);
+
+/**
  * \brief 生成一个圆角边框的texture的渲染数据
  * \param texture (可选) 纹理
  * \param textureW (可选) 纹理宽度
  * \param textureH (可选) 纹理高度
  * \param dstrect 渲染目标矩形
  * \param radius 半径, 在0-1之间
- * \param index (返回) 索引数组
- * \param vertex (返回) 顶点数组
+ * \param ebo 渲染数据
  * \warning texture和textureW/H至少存在一个
  * \warning radius会根据最小边长自动调整
-*/
-void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SDL_FRect *dstrect, float radius, data **index, data **vertex);
+ */
+void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SDL_FRect *dstrect, float radius, ebo *ebo);
 
 #endif // _DRAW_H

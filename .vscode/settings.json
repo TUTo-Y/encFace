@@ -63,7 +63,10 @@
         "valarray": "c",
         "string": "c",
         "mutex": "c",
-        "shared_mutex": "c"
+        "shared_mutex": "c",
+        "math.h": "c",
+        "glew.h": "c",
+        "numbers": "c"
     },
     "cmake.sourceDirectory": "/home/tuto/github/enc-face/external/SEAL-Python/SEAL/native/tests/seal/util"
 }

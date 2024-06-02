@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "data.h"
+#include "gui_login.h"
 #include "gui_play.h"
 #include "enc.h"
 #include "web.h"
@@ -25,19 +26,6 @@
  * \brief 选择图片
  */
 bool selectImageFile(char *path, size_t size);
-
-// 加载人脸数据
-bool choiceImage(
-                 const SDL_Rect *windowRect,
-                 SDL_Renderer *renderer,
-                 SDL_Surface **surface, SDL_Texture **texture,
-                 SDL_FRect *surfaceRect, float *scale, float *scale2,
-                 list **face, list **faceSurface, list **faceTexture);
-                 
-/**
- * \brief 使用多线程加载数据
- */
-void *th(void *arg);
 
 // 检查线程是否存在
 bool getThread();
