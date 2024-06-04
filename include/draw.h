@@ -88,9 +88,10 @@ void freeEBO(ebo *ebo);
  * \param dstrect 渲染目标矩形
  * \param radius 半径, 在0-1之间
  * \param ebo 渲染数据
+ * \param color (可选)边框颜色
  * \warning texture和textureW/H至少存在一个
  * \warning radius会根据最小边长自动调整
  */
-void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SDL_FRect *dstrect, float radius, ebo *ebo);
+void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SDL_FRect *dstrect, float radius, ebo *ebo, SDL_Color *color);
 
 #endif // _DRAW_H

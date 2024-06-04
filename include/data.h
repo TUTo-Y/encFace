@@ -20,6 +20,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <gmssl/sm9.h>
+#include <gmssl/sm2.h>
 
 #include "config.h"
 
@@ -40,6 +41,15 @@
 enum
 {
     flag_start = 0,
+
+    login_button, // 按下登录按钮
+    reg_button,   // 按下注册按钮
+
+    text_Click,           // 文本框选中状态
+    text_Click_Start,     // 文本框选中状态(初始化状态)
+    text_Click_Not,       // 文本框未选中状态
+    text_Click_Not_Start, // 文本框未选中状态(初始化状态)
+
     image_enter,  // 图片是否按下
     button_enter, // 按钮是否按下
 
@@ -57,8 +67,7 @@ enum
 
     button_Wait,           // 按钮等待动画
     button_Wait_Start,     // 按钮等待动画(初始化状态)
-    // button_Not_Wait,       // 按钮等待动画
-    button_Not_Wait_Start, // 按钮等待动画(初始化状态)
+    button_Not_Wait_Start, // 按钮等待结束动画(初始化状态)
 };
 
 typedef unsigned char byte;
@@ -103,13 +112,18 @@ struct _vector
 struct _Global
 {
     char path[PATH_MAX]; // 图片路径
+    char name[USER_LEN]; // 用户名
 
     int sock_s; // 远程服务端 socket
     int sock_f; // facenet端 socket
 
+    int quit; // 退出标志
+
     TTF_Font *font; // 字体
 
     SM9_ENC_MASTER_KEY SM9master; // sm9主密钥
+    SM2_KEY SM2server;            // sm2服务器公钥
+    SM2_KEY SM2user;              // sm2用户密钥对
 
     pthread_t thread;     // 线程
     bool thread_status;   // 线程状态, 线程是否存在

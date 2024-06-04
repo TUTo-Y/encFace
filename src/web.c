@@ -61,7 +61,7 @@ bool connectFaceNet()
     CHECK(ret != INADDR_NONE, "绑定socket端口错误: %s\n", strerror(errno));
 
     // 设置监听时间
-    struct timeval timeout = { 0 };
+    struct timeval timeout = {0};
     timeout.tv_sec = 10;
     ret = setsockopt(listSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
     CHECK(ret != INADDR_NONE, "设置监听超时时间错误: %s\n", strerror(errno));
@@ -91,10 +91,10 @@ error:
  */
 void closeServer()
 {
-    size_t msgs = MSG_CLOSE;
-    
+    MSG_TYPE msgs = MSG_CLOSE;
+
     // 发送关闭消息
-    if(send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0) == INADDR_NONE)
+    if (send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0) == INADDR_NONE)
         return;
 
     // 关闭socket
@@ -106,10 +106,10 @@ void closeServer()
  */
 void closeFaceNet()
 {
-    size_t msgs = MSG_CLOSE;
+    MSG_TYPE msgs = MSG_CLOSE;
 
     // 发送关闭消息
-    if(send(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, 0) == INADDR_NONE)
+    if (send(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, 0) == INADDR_NONE)
         return;
 
     // 关闭socket
@@ -131,7 +131,7 @@ bool getFaceVector(const char *file, list **head)
 
     // 检查参数
     CHECK(file && head, "文件名为空\n");
-    
+
     // 初始化
     listFree(head, (void (*)(void *))freeVector);
 
@@ -284,6 +284,118 @@ bool getFaceInfo(list *face)
 
         node = node->next;
     }
+
+    return true;
+error:
+    return false;
+}
+
+/**
+ * \brief 注册
+ */
+bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *mkey)
+{
+    int ret;
+    MSG_TYPE msgs;
+
+    uint8_t textCipher[SM2_MAX_CIPHERTEXT_SIZE] = {0}; // sm2密文
+    size_t textCipherSize = 0;                         // sm2密文大小
+    uint8_t textPlaint[SM2_MAX_PLAINTEXT_SIZE] = {0};  // sm2明文
+    size_t textPlaintSize = 0;                         // sm2明文大小
+
+    // 检查参数
+    if (!ID || !skey || !mkey)
+        return false;
+
+    // 生成sm2密钥对
+    ret = sm2_key_generate(mkey);
+    CHECK(ret == 1, "生成sm2密钥对错误\n");
+
+    // 获取公钥
+    data *pub = NULL;
+    sm2_public_key_info_to_pem_data(mkey, &pub);
+
+    // 向服务器发送注册请求
+    msgs = MSG_REGISTER;
+    ret = send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送注册请求错误: %s\n", strerror(errno));
+
+    // 加密ID
+    ret = sm2_encrypt(skey, ID, strlen(ID), textCipher, &textCipherSize);
+    CHECK(ret == 1, "加密ID错误\n");
+
+    // 发送ID密文长度(size_t)
+    ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送ID密文长度错误: %s\n", strerror(errno));
+
+    // 发送ID密文(char*)
+    ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送ID密文错误: %s\n", strerror(errno));
+
+    // 加密公钥
+    ret = sm2_encrypt(skey, pub->data, pub->size, textCipher, &textCipherSize);
+    CHECK(ret == 1, "加密公钥错误\n");
+
+    // 发送公钥密文长度(size_t)
+    ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送公钥密文长度错误: %s\n", strerror(errno));
+
+    // 发送公钥密文(char*)
+    ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送公钥密文错误: %s\n", strerror(errno));
+
+    // 接受我的ID的密文长度
+    ret = recv(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), MSG_WAITALL);
+    CHECK(ret != INADDR_NONE, "从远程服务器接受我的ID的密文长度错误: %s\n", strerror(errno));
+
+    // 接受我的ID的密文
+    ret = recv(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
+    CHECK(ret != INADDR_NONE, "从远程服务器接受我的ID的密文错误: %s\n", strerror(errno));
+
+    // 解密我的ID
+    ret = sm2_decrypt(mkey, textCipher, textCipherSize, textPlaint, &textPlaintSize);
+    CHECK(ret == 1, "解密我的ID错误\n");
+
+    // 校验我的ID
+    textPlaint[textPlaintSize] = '\0';
+    CHECK(strcmp(ID, textPlaint) == 0, "接受到得ID是错误的:[%s]\n", textPlaint);
+
+    // 加密ID
+    ret = sm2_encrypt(skey, ID, strlen(ID), textCipher, &textCipherSize);
+    CHECK(ret == 1, "加密ID错误\n");
+
+    // 发送ID密文长度(size_t)
+    ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送ID密文长度错误: %s\n", strerror(errno));
+
+    // 发送ID密文(char*)
+    ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送ID密文错误: %s\n", strerror(errno));
+
+    // 接受消息
+    ret = recv(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
+    CHECK(ret != INADDR_NONE, "从远程服务器接受消息错误: %s\n", strerror(errno));
+
+    // 检查是否注册成功
+    CHECK(msgs == MSG_SUCESS, "注册失败\n");
+
+    Free(pub);
+    return true;
+
+error:
+    Free(pub);
+    return false;
+}
+
+/**
+ * \brief 登录
+ */
+bool loginUser(const char *ID)
+{
+    int ret;
+
+
+
 
     return true;
 error:

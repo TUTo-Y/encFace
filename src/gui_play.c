@@ -150,7 +150,8 @@ void gui_play()
     SDL_GetWindowSize(window, &windowRect.w, &windowRect.h);
 
     // 加载初始化图片
-    surface = IMG_Load(TEAM_IMAGE);
+    // surface = IMG_Load(TEAM_IMAGE);
+    surface = NULL;
     if (!surface)
     {
         surface = SDL_CreateRGBSurface(0, windowRect.w, windowRect.h, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
@@ -160,7 +161,7 @@ void gui_play()
     resizeImage(&windowRect, &surfaceRect, surface->w, surface->h);
     scale = surfaceRect.w / surface->w;
     scale2 = 1.0f;
-    getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO);
+    getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO, NULL);
 
     // 动画计时器
     Uint64 timer1 = 0;
@@ -169,8 +170,8 @@ void gui_play()
     // 初始化按钮区域
     resetButton(&buttonPoint, &buttonRadius, &buttonMsgWRect, &buttonMsgHRect, &windowRect);
 
-    int quit = 1;
-    while (quit)
+    Global.quit = 1;
+    while (Global.quit)
     {
         SDL_Event event = {0}; // 事件
         
@@ -183,7 +184,7 @@ void gui_play()
             switch (event.type)
             {
             case SDL_QUIT:
-                quit = 0;
+                Global.quit = 0;
                 break;
 
             case SDL_WINDOWEVENT: // 窗口事件
@@ -224,7 +225,7 @@ void gui_play()
                         surfaceRect.y += event.motion.yrel;
 
                         // 重新计算图片渲染数据
-                        getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO);
+                        getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO, NULL);
                     }
 
                     // 按下按钮移动
@@ -305,7 +306,7 @@ void gui_play()
                                 SET_FLAG(button_Wait);
 
                                 // 更新渲染数据
-                                getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO);
+                                getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO, NULL);
                             }
                             // 选择失败
                             else if (!CHECK_FLAG(button_Wait))
@@ -359,7 +360,7 @@ void gui_play()
                 }
 
                 // 更新渲染数据
-                getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO);
+                getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO, NULL);
 
                 break;
             }

@@ -83,16 +83,21 @@ void freeEBO(ebo *ebo)
     }
 }
 
-void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SDL_FRect *dstrect, float radius, ebo *ebo)
+void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SDL_FRect *dstrect, float radius, ebo *ebo, SDL_Color *color)
 {
-    float Radius;  // 目标区域半径
-    float radiusX; // 纹理半径
-    float radiusY; // 纹理半径
-    int vertexNum; // 圆角上的顶点数量
+
+    unsigned int colorDefault = 0xFFFFFFFF; // 默认颜色
+    float Radius;                           // 目标区域半径
+    float radiusX;                          // 纹理半径
+    float radiusY;                          // 纹理半径
+    int vertexNum;                          // 圆角上的顶点数量
 
     // 检查参数
     if (!(texture || (textureW && textureH)) || !dstrect || !ebo)
         return;
+
+    if(!color)
+        color = (SDL_Color*)&colorDefault;
 
     // 获取纹理宽高
     if (texture)
@@ -119,28 +124,28 @@ void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SD
 
     /* 计算四个圆角的中心点 */
     // 右上角
-    ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 0].color = (SDL_Color){0xFF, 0xFF, 0xFF, 0xFF};
+    ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 0].color = *color;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 0].position.x = dstrect->x + dstrect->w - Radius;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 0].position.y = dstrect->y + Radius;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 0].tex_coord.x = 1.0f - radiusX;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 0].tex_coord.y = radiusY;
 
     // 左上角
-    ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 1].color = (SDL_Color){0xFF, 0xFF, 0xFF, 0xFF};
+    ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 1].color = *color;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 1].position.x = dstrect->x + Radius;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 1].position.y = dstrect->y + Radius;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 1].tex_coord.x = radiusX;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 1].tex_coord.y = radiusY;
 
     // 左下角
-    ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 2].color = (SDL_Color){0xFF, 0xFF, 0xFF, 0xFF};
+    ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 2].color = *color;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 2].position.x = dstrect->x + Radius;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 2].position.y = dstrect->y + dstrect->h - Radius;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 2].tex_coord.x = radiusX;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 2].tex_coord.y = 1.0f - radiusY;
 
     // 右下角
-    ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 3].color = (SDL_Color){0xFF, 0xFF, 0xFF, 0xFF};
+    ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 3].color = *color;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 3].position.x = dstrect->x + dstrect->w - Radius;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 3].position.y = dstrect->y + dstrect->h - Radius;
     ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + 3].tex_coord.x = 1.0f - radiusX;
@@ -155,7 +160,7 @@ void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SD
         for (; j < (i + 1) * vertexNum / 4; j++, vertexP++)
         {
             // 设置点
-            vertexP->color = (SDL_Color){0xFF, 0xFF, 0xFF, 0xFF};
+            vertexP->color = *color;
             vertexP->position.x = ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + i].position.x + Radius * cosf(2.0f * PI * (float)j / (float)vertexNum);
             vertexP->position.y = ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + i].position.y - Radius * sinf(2.0f * PI * (float)j / (float)vertexNum);
             vertexP->tex_coord.x = ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + i].tex_coord.x + radiusX * cosf(2.0f * PI * (float)j / (float)vertexNum);
@@ -165,7 +170,7 @@ void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SD
             *(indexP++) = vertexNum + 4 + i;
             *(indexP++) = (*(indexP++) = vertexP - ((SDL_Vertex *)(ebo->vertex->data))) + 1;
         }
-        vertexP->color = (SDL_Color){0xFF, 0xFF, 0xFF, 0xFF};
+        vertexP->color = *color;
         vertexP->position.x = ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + i].position.x + Radius * cosf(2.0f * PI * (float)j / (float)vertexNum);
         vertexP->position.y = ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + i].position.y - Radius * sinf(2.0f * PI * (float)j / (float)vertexNum);
         vertexP->tex_coord.x = ((SDL_Vertex *)(ebo->vertex->data))[vertexNum + 4 + i].tex_coord.x + radiusX * cosf(2.0f * PI * (float)j / (float)vertexNum);

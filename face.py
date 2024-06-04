@@ -146,14 +146,14 @@ def main():
     
     while True:
         # 接收客户端数据
-        flag = struct.unpack('Q', s.recv(8, socket.MSG_WAITALL))
+        flag = struct.unpack('Q', s.recv(8, socket.MSG_WAITALL))[0]
         
         # 如果flag为0，表示客户端请求关闭连接
-        if flag[0] == MSG_CLOSE:
+        if flag == MSG_CLOSE:
             break
         
         # 如果flag为1，表示客户端请求处理人脸
-        if flag[0] == MSG_GET_FACE_VECTOR:
+        if flag == MSG_GET_FACE_VECTOR:
             read(s, mtcnn, resnet, encryptor, batch_encoder)
         
     # 关闭服务器套接字

@@ -1,6 +1,19 @@
 #include "enc.h"
 
 /**
+ * \brief 随即生成ZUC密钥和初始化向量
+ */
+void zucKeyVi(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_KEY_SIZE])
+{
+    // 初始化key和iv
+    for (int i = 0; i < ZUC_KEY_SIZE; i++)
+    {
+        key[i] = rand() % 256;
+        iv[i] = rand() % 256;
+    }
+}
+
+/**
  * \brief ZUC加密函数
  * \param msg 需要加密的数据
  * \param out 加密后的数据
@@ -17,11 +30,7 @@ bool zucEnc(const data *msg, data **out, uint8_t key[ZUC_KEY_SIZE], uint8_t iv[Z
         return false;
 
     // 初始化key和iv
-    for (int i = 0; i < ZUC_KEY_SIZE; i++)
-    {
-        key[i] = rand() % 256;
-        iv[i] = rand() % 256;
-    }
+    zucKeyVi(key, iv);
 
     // 使用key和iv初始化ZUC
     zuc_init(&state, key, iv);
@@ -71,4 +80,33 @@ bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const 
     // 释放资源
     free(k);
     return true;
+}
+
+/**
+ * \brief 获取sm2公钥信息
+ * \param key sm2公钥
+ * \param out sm2公钥信息
+ */
+void sm2_public_key_info_to_pem_data(const SM2_KEY *key, data **out)
+{
+    FILE *file = tmpfile();
+    size_t size = 0;
+
+    if (!key || !out)
+        return;
+
+    // 将sm2公钥信息写入文件
+    sm2_public_key_info_to_pem(key, file);
+
+    // 读取文件大小
+    fseek(file, 0, SEEK_END);
+    size = ftell(file);
+    rewind(file);
+
+    // 读取文件
+    *out = Malloc(size);
+    (*out)->size = size;
+    fread((*out)->data, 1, size, file);
+
+    fclose(file);
 }

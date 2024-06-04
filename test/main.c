@@ -11,6 +11,8 @@
 #include <SDL2/SDL_ttf.h>
 #define PI 3.1415926f
 
+#define INT2RGBA(x) ((SDL_Color){(x) & 0xff, ((x) & 0xff00) >> 8, ((x) & 0xff0000) >> 16, ((x) & 0xff000000) >> 24})
+
 /**
  * \brief 扰动函数
  * \param window_width 窗口宽度
@@ -20,9 +22,8 @@
  * \param stonesize 石头大小
  * \param stoneweight 石头力度
  * \param buf 波幅数组
-*/
-static
-void disturb(int window_width, int window_height, int x, int y, int stonesize, int stoneweight, short *buf)
+ */
+static void disturb(int window_width, int window_height, int x, int y, int stonesize, int stoneweight, short *buf)
 {
     if ((x >= window_width - stonesize) ||
         (x < stonesize) ||
@@ -51,9 +52,8 @@ void disturb(int window_width, int window_height, int x, int y, int stonesize, i
  * \param window_height 窗口高度
  * \param buf 当前波幅
  * \param buf2 下一帧波幅
-*/
-static
-void nextFrame(int window_width, int window_height, short **buf, short **buf2)
+ */
+static void nextFrame(int window_width, int window_height, short **buf, short **buf2)
 {
     for (int i = window_width; i < window_height * (window_width - 1); i++)
     {
@@ -68,7 +68,6 @@ void nextFrame(int window_width, int window_height, short **buf, short **buf2)
     // *buf = *buf2;
     // *buf2 = temp;
 
-    
     for (int i = window_width; i < window_height * (window_width - 1); i++)
     {
         // 公式：X0'= (X1+X2+X3+X4) / 2 - X0
@@ -86,9 +85,8 @@ void nextFrame(int window_width, int window_height, short **buf, short **buf2)
  * \param buf 波幅数组
  * \param color_src 原图片内存指针
  * \param color_tar 处理后显示的位图内存指针
-*/
-static
-void RenderRipple(int window_width, int window_height, short *buf, SDL_Color *color_src, SDL_Color *color_tar)
+ */
+static void RenderRipple(int window_width, int window_height, short *buf, SDL_Color *color_src, SDL_Color *color_tar)
 {
     int i = 0;
     for (int y = 0; y < window_height; y++)
@@ -127,22 +125,17 @@ void Play()
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     SDL_Surface *tmp = IMG_Load("login.png");
     SDL_Surface *surface = SDL_ConvertSurfaceFormat(tmp, SDL_PIXELFORMAT_RGBA32, 0);
-    
+
     WINDOW_LOGIN_DEFAULT_WIDTH = surface->w;
     WINDOW_LOGIN_DEFAULT_HEIGHT = surface->h;
 
-    
     SDL_Surface *surface_src = SDL_CreateRGBSurfaceWithFormat(0, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
     SDL_SetSurfaceBlendMode(surface_src, SDL_BLENDMODE_BLEND);
     SDL_BlitSurface(surface, NULL, surface_src, NULL);
-    
+
     SDL_Surface *surface_tar = SDL_CreateRGBSurfaceWithFormat(0, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
     SDL_SetSurfaceBlendMode(surface_tar, SDL_BLENDMODE_BLEND);
     SDL_BlitSurface(surface, NULL, surface_tar, NULL);
-
-    // memcpy(surface_tar->pixels, surface->pixels, surface->pitch * surface->h);
-    // SDL_Surface *surface_src = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA32, 0);
-    // SDL_Surface *surface_tar = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA32, 0);
 
     SDL_SetWindowSize(window, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT);
 
@@ -154,13 +147,55 @@ void Play()
     short *buf2 = malloc((WINDOW_LOGIN_DEFAULT_HEIGHT * WINDOW_LOGIN_DEFAULT_WIDTH + WINDOW_LOGIN_DEFAULT_WIDTH) * sizeof(short));
 
     SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT);
-    
+
     // 渲染
     int a = 1;
 
+    // test
+    SDL_Color color1[] = {
+        INT2RGBA(0xffee9ca7),
+        INT2RGBA(0xff2193b0),
+        INT2RGBA(0xffa8ff78),
+        INT2RGBA(0xff11998e),
+        INT2RGBA(0xff74ebd5),
+        INT2RGBA(0xff43c6ac),
+        INT2RGBA(0xffc0c0aa)};
+    SDL_Color color2[] = {
+        INT2RGBA(0xffffdde1),
+        INT2RGBA(0xff6dd5ed),
+        INT2RGBA(0xff78ffd6),
+        INT2RGBA(0xff38ef7d),
+        INT2RGBA(0xffacb6e5),
+        INT2RGBA(0xfff8ffae),
+        INT2RGBA(0xff1cefff)};
+    SDL_Color *colorp1A = color1;
+    SDL_Color *colorp1B = color1 + 1;
+
+    SDL_Color *colorp2A = color2;
+    SDL_Color *colorp2B = color2 + 1;
+
+    SDL_Vertex vertex[4] = {
+        {.color = {0x74, 0xEB, 0xD5, 255},
+         .position = {0, 0},
+         .tex_coord = {0, 0}},
+        {.color = {0xAC, 0xB6, 0xE5, 255},
+         .position = {WINDOW_LOGIN_DEFAULT_WIDTH, 0},
+         .tex_coord = {0, 0}},
+        {.color = {0xAC, 0xB6, 0xE5, 255},
+         .position = {WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT},
+         .tex_coord = {0, 0}},
+        {.color = {0x74, 0xEB, 0xD5, 255},
+         .position = {0, WINDOW_LOGIN_DEFAULT_HEIGHT},
+         .tex_coord = {0, 0}},
+    };
+    int index[6] = {0, 1, 2, 0, 2, 3};
+
     bool quit = false;
+    int time1 = 0, time2 = 0;
+    time2 = time1 = SDL_GetTicks();
     while (!quit)
     {
+        time1 = SDL_GetTicks();
         SDL_Event event = {0};
         while (SDL_PollEvent(&event))
         {
@@ -170,39 +205,59 @@ void Play()
                 quit = true;
                 break;
 
-            case SDL_MOUSEMOTION: // 移动事件
-                if (event.motion.state == SDL_BUTTON_LMASK)
-                {
-                    disturb(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, event.motion.x, event.motion.y, 5, 256, buf);
-                }
-                break;
+                // case SDL_MOUSEMOTION: // 移动事件
+                //     if (event.motion.state == SDL_BUTTON_LMASK)
+                //     {
+                //         disturb(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, event.motion.x, event.motion.y, 5, 256, buf);
+                //     }
+                //     break;
 
-            case SDL_MOUSEBUTTONDOWN:                       // 按下事件
-                if (event.button.button == SDL_BUTTON_LEFT) // 左键按下
-                    disturb(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, event.button.x, event.button.y, 5, 2560, buf);
-                break;
+                // case SDL_MOUSEBUTTONDOWN:                       // 按下事件
+                //     if (event.button.button == SDL_BUTTON_LEFT) // 左键按下
+                //         disturb(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, event.button.x, event.button.y, 5, 2560, buf);
+                //     break;
             }
         }
-        
+
         // 清空屏幕
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
 
-        // 计算下一帧波幅
-        nextFrame(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, &buf, &buf2);
-        // 渲染波纹
-        RenderRipple(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, buf, color_src, color_tar);
+        {
+            if (time1 - time2 > 1000)
+            {
+                colorp1A = colorp1B;
+                colorp2A = colorp2B;
 
-        // 更新纹理
-        SDL_LockTexture(texture, NULL, (void **)&color_tar, &surface->pitch);
-        SDL_UpdateTexture(texture, NULL, color_tar, surface->pitch);
-        SDL_UnlockTexture(texture);
+                colorp1B = (colorp1B == color1 + 6) ? color1 : colorp1B + 1;
+                colorp2B = (colorp2B == color2 + 6) ? color2 : colorp2B + 1;
 
-        // 渲染纹理
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
+                time2 = time1;
+            }
+            float t = (time1 - time2) / 1000.0f;
+            // A->B
+            vertex[0].color.r = vertex[3].color.r = colorp1A->r + (colorp1B->r - colorp1A->r) * (powf((t - 0.5f), 2.0f) + 0.5f);
+            vertex[0].color.g = vertex[3].color.g = colorp1A->g + (colorp1B->g - colorp1A->g) * (powf((t - 0.5f), 2.0f) + 0.5f);
+            vertex[0].color.b = vertex[3].color.b = colorp1A->b + (colorp1B->b - colorp1A->b) * (powf((t - 0.5f), 2.0f) + 0.5f);
 
+            vertex[1].color.r = vertex[2].color.r = colorp2A->r + (colorp2B->r - colorp2A->r) * (powf((t - 0.5f), 2.0f) + 0.5f);
+            vertex[1].color.g = vertex[2].color.g = colorp2A->g + (colorp2B->g - colorp2A->g) * (powf((t - 0.5f), 2.0f) + 0.5f);
+            vertex[1].color.b = vertex[2].color.b = colorp2A->b + (colorp2B->b - colorp2A->b) * (powf((t - 0.5f), 2.0f) + 0.5f);
+        }
 
-        SDL_Delay(1000/60);
+        // // 计算下一帧波幅
+        // nextFrame(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, &buf, &buf2);
+        // // 渲染波纹
+        // RenderRipple(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, buf, color_src, color_tar);
+
+        // // 更新纹理
+        // SDL_LockTexture(texture, NULL, (void **)&color_tar, &surface->pitch);
+        // SDL_UpdateTexture(texture, NULL, color_tar, surface->pitch);
+        // SDL_UnlockTexture(texture);
+
+        SDL_RenderGeometry(renderer, NULL, vertex, 4, index, 6);
+
+        SDL_Delay(1000 / 60);
         SDL_RenderPresent(renderer);
     }
 

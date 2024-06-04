@@ -28,10 +28,17 @@ int main(int argc, char *argv[])
     // 初始化线程锁
     pthread_mutex_init(&Global.lock, NULL);
 
+    // 读取sm2服务器公钥
+    DEBUG("加载sm2服务器公钥...\n");
+    FILE *fp = fopen(SM2_PUBLIC, "r");
+    CHECK(fp, "无法打开"SM2_PUBLIC"\n");
+    sm2_public_key_info_from_pem(&Global.SM2server, fp);
+    fclose(fp);
+
     // 读取sm9主公钥
     DEBUG("加载sm9主公钥...\n");
-    FILE *fp = fopen("master_public_key.pem", "rb");
-    CHECK(fp, "无法打开master_public_key.pem\n");
+    fp = fopen(SM9_PUBLIC, "r");
+    CHECK(fp, "无法打开"SM9_PUBLIC"\n");
     sm9_enc_master_public_key_from_pem(&Global.SM9master, fp);
     fclose(fp);
 
@@ -42,12 +49,15 @@ int main(int argc, char *argv[])
     TTF_Init();
 
     // 加载字体
-    Global.font = TTF_OpenFont(TTF_PATH, 24);
+    Global.font = TTF_OpenFont(TTF_PATH, 96);
     CHECK(Global.font != NULL, "TTF_OpenFont: %s\n", TTF_GetError());
 
     // core gui
     // gui_play();
-    gui_login();
+    if(gui_login() == LOGIN_SUCCESS)
+    {
+        gui_play();
+    }
 
 error:
     // 销毁字体

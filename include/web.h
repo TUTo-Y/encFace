@@ -19,15 +19,21 @@ typedef size_t MSG_TYPE;               // 消息类型
 #define MSG_TYPE_SIZE sizeof(MSG_TYPE) // 消息类型长度
 #define MSG_CLOSE 0                    // 关闭连接消息
 #define MSG_SUCESS 1                   // 处理成功
-#define MSG_GET_FACE_VECTOR 2          // 请求获取人脸特征向量
-#define MSG_GET_FACE_INFO 3            // 请求获取人脸信息
+
+#define MSG_GET_FACE_VECTOR 2 // 请求获取人脸特征向量
+#define MSG_GET_FACE_INFO 3   // 请求获取人脸信息
 
 #define MSG_FACE 4     // 人脸数据
 #define MSG_FACE_END 5 // 结束
 
+#define MSG_REGISTER 6         // 注册请求
+#define MSG_REGISTER_USER_IN 7 // 注册用户存在
+
+#define MSG_LOGIN 8 // 登录请求
+
 /**
  * 客户端上传特征向量的数据格式:
- * 
+ *
  * 向远程服务器发送请求(size_t)
  * 客户端发送身份ID长度(size_t)
  * 客户端发送身份ID(byte*)
@@ -87,5 +93,18 @@ bool getFaceVector(const char *file, list **head);
  * \return 是否成功
  */
 bool getFaceInfo(list *face);
+
+/**
+ * \brief 注册
+ * \param ID 用户ID
+ * \param skey 服务器sm2公钥
+ * \param mkey 保存用户sm2密钥对
+ */
+bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *mkey);
+
+/**
+ * \brief 登录
+ */
+bool loginUser(const char *ID);
 
 #endif
