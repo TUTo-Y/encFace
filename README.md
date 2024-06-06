@@ -1,20 +1,16 @@
-- [encFace客户端模块](#encface客户端模块)
+- [encFace客户端模块对特征向量的提取和加密](#encface客户端模块对特征向量的提取和加密)
   - [环境依赖](#环境依赖)
   - [MTCNN和InceptionResnetV1的识别测试](#mtcnn和inceptionresnetv1的识别测试)
   - [目录](#目录)
 - [主程序](#主程序)
 - [人脸识别服务端](#人脸识别服务端)
 
-# encFace客户端模块
+# encFace客户端模块对特征向量的提取和加密
 
 1. 使用MTCNN模型识别图像中的人脸
 2. 使用InceptionResnetV1模型提取所有人脸的512位特征向量
-3. 将这些特征向量转化为整数
+3. 将这些特征向量cheng yi转化为整数
 4. 将结果转化为明文形式进行BGV加密
-5. 将加密结果使用ZUC加密
-6. sm9加密zuc密钥
-7. 将算法ID和加密后的数据传输给服务器
-8. 接受服务器的信息反馈
 
 ## 环境依赖
 
@@ -22,7 +18,6 @@
 
 | C语言依赖                                             | 描述                                   |
 | ---- | ---- |
-| [MinGW](https://github.com/niXman/mingw-builds-binaries) | 作为C语言编译器                        |
 | [GmSSL](https://gitee.com/YoungWxy/GmSSL)                | 由北京大学自主开发的国产商用密码开源库 |
 | [SDL](https://github.com/libsdl-org/SDL)                 | 渲染界面                               |
 | [SDL_image](https://github.com/libsdl-org/SDL_image)     | 读取图片                               |

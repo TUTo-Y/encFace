@@ -17,10 +17,12 @@
 #include <netinet/in.h>
 #include <linux/limits.h>
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 #include <gmssl/sm9.h>
 #include <gmssl/sm2.h>
+#include <gmssl/zuc.h>
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 #include "config.h"
 
@@ -121,9 +123,9 @@ struct _Global
 
     TTF_Font *font; // 字体
 
-    SM9_ENC_MASTER_KEY SM9master; // sm9主密钥
-    SM2_KEY SM2server;            // sm2服务器公钥
-    SM2_KEY SM2user;              // sm2用户密钥对
+    SM2_KEY SM2server;  // sm2服务器公钥
+    SM2_KEY SM2user;    // sm2用户密钥对
+    ZUC_STATE ZUCstate; // ZUC密钥
 
     pthread_t thread;     // 线程
     bool thread_status;   // 线程状态, 线程是否存在

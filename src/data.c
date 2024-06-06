@@ -3,13 +3,6 @@
 // 全局数据
 struct _Global Global = { 0 };
 
-/**
- * \brief 向链表中添加一个数据
- * \param head 链表头指针
- * \param data 数据指针
- * \param size 数据大小(如果isCopy为true则必须提供size)
- * \param isCopy 是否复制数据
- */
 bool addData(list **head, void *data, size_t size, bool isCopy)
 {
     if (!head || !data)
@@ -42,12 +35,6 @@ bool addData(list **head, void *data, size_t size, bool isCopy)
     return true;
 }
 
-/**
- * \brief 从链表中取出一个数据
- * \param head 链表头指针
- * \param data 数据指针
- * \return 是否成功取出数据
- */
 bool getData(list **head, void **data)
 {
     if ((!head) || (*head == NULL))
@@ -68,11 +55,6 @@ bool getData(list **head, void **data)
     return true;
 }
 
-/**
- * \brief 释放链表
- * \param head 链表头指针
- * \param Free 释放数据的函数指针
- */
 void listFree(list **head, void (*freedom)(void *ptr))
 {
     if (!head)
@@ -91,11 +73,6 @@ void listFree(list **head, void (*freedom)(void *ptr))
     }
 }
 
-/**
- * \brief 获取链表元素数量
- * \param head 链表头指针
- * \return 链表元素数量
- */
 size_t listLen(list *head)
 {
     size_t count = 0;
@@ -107,9 +84,6 @@ size_t listLen(list *head)
     return count;
 }
 
-/**
- * \brief 释放vec数据
- */
 void freeVector(vector *vec)
 {
     if (vec)
@@ -120,10 +94,6 @@ void freeVector(vector *vec)
     }
 }
 
-/**
- * \brief 创建数据
- * \param size 大小
- */
 data *Malloc(size_t size)
 {
     data *temp = (data *)malloc(sizeof(data));
@@ -143,10 +113,6 @@ data *Malloc(size_t size)
     return temp;
 }
 
-/**
- * \brief 释放数据
- * \param data 数据指针
- */
 void Free(data *data)
 {
     if (data)
@@ -157,12 +123,6 @@ void Free(data *data)
     }
 }
 
-/**
- * \brief 在d后面添加数据
- * \param d 数据
- * \param s 数据
- * \param size s的大小
- */
 bool Realloc(data *d, const void *s, size_t size)
 {
     if ((!d) || (!s) || size == 0)

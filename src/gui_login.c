@@ -185,6 +185,7 @@ unsigned int gui_login()
         SDL_RenderGeometry(renderer, NULL, vertex, 4, index, 6);
         // 获取背景框的EBO
         getRoundedBorder(NULL, (int)backRect.w, (int)backRect.h, &backRect, 0.1f, &backEBO, NULL);
+        // 恢复renderer
         SDL_SetRenderTarget(renderer, NULL);
         SDL_SetTextureColorMod(backTexture, 0x00, 0x00, 0x00);
     }
@@ -286,7 +287,7 @@ unsigned int gui_login()
 
     // 渲染
     Global.quit = 1;
-    while (Global.quit)
+    while (getThread() == false && Global.quit)
     {
         // 事件处理
         SDL_Event event = {0};
@@ -606,29 +607,25 @@ void *login(void *arg)
     uint8_t key[ZUC_KEY_SIZE] = {0};
     uint8_t iv[ZUC_KEY_SIZE] = {0};
 
-    // memset(&Global.SM2user, 0, sizeof(SM2_KEY));
-    // userGet(USER_CONFIG, Global.name, &Global.SM2user, key, iv);
+    // 获取用户信息
+    ret = userGet(USER_CONFIG, Global.name, &Global.SM2user, key, iv);
+    CHECK(ret == true, "未在本地检测到该用户");
 
-    // char data[] = "Hello World!";
+    // 计算出ZUC密钥
+    zuc_init(&Global.ZUCstate, key, iv);
 
-    // // 加密
-    // char cipher[SM2_MAX_CIPHERTEXT_SIZE] = {0};
-    // size_t cipherlen = 0;
+    // 与在服务端登陆
 
-    // printf("加密前: %s\n大小=%d\n", data, strlen(data));
-    // sm2_encrypt(&Global.SM2user, (uint8_t *)data, strlen(data), cipher, &cipherlen);
 
-    // // 解密
-    // char plain[SM2_MAX_PLAINTEXT_SIZE] = {0};
-    // size_t plainlen = 0;
-
-    // sm2_decrypt(&Global.SM2user, (uint8_t *)cipher, cipherlen, plain, &plainlen);
-    // printf("解密后: %s\n大小=%d\n", plain, plainlen);
-
+    // 成功登陆
     Global.quit = 0;
     *(unsigned int *)arg = LOGIN_SUCCESS;
+    
+error:
     setThread(false);
+    return NULL;
 }
+
 void *reg(void *arg)
 {
     int ret;

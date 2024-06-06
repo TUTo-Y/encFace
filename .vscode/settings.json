@@ -68,7 +68,9 @@
         "glew.h": "c",
         "numbers": "c",
         "chrono": "c",
-        "typeindex": "c"
+        "typeindex": "c",
+        "socket.h": "c",
+        "in.h": "c"
     },
     "cmake.sourceDirectory": "/home/tuto/github/enc-face/external/SEAL-Python/SEAL/native/tests/seal/util"
 }

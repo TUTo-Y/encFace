@@ -1,8 +1,5 @@
 #include "enc.h"
 
-/**
- * \brief 随即生成ZUC密钥和初始化向量
- */
 void zucKeyVi(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_KEY_SIZE])
 {
     // 初始化key和iv
@@ -13,13 +10,6 @@ void zucKeyVi(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_KEY_SIZE])
     }
 }
 
-/**
- * \brief ZUC加密函数
- * \param msg 需要加密的数据
- * \param out 加密后的数据
- * \param key 密钥
- * \param iv  初始化向量
- */
 bool zucEnc(const data *msg, data **out, uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_KEY_SIZE])
 {
 
@@ -50,13 +40,6 @@ bool zucEnc(const data *msg, data **out, uint8_t key[ZUC_KEY_SIZE], uint8_t iv[Z
     return true;
 }
 
-/**
- * \brief ZUC解密函数
- * \param msg 需要解密的数据
- * \param out 加密后的数据
- * \param key 密钥
- * \param iv  初始化向量
- */
 bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const uint8_t iv[ZUC_KEY_SIZE])
 {
     ZUC_STATE state = {0};
@@ -82,11 +65,6 @@ bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const 
     return true;
 }
 
-/**
- * \brief 获取sm2公钥信息
- * \param key sm2公钥
- * \param out sm2公钥信息
- */
 void sm2_public_key_info_to_pem_data(const SM2_KEY *key, data **out)
 {
     FILE *file = tmpfile();

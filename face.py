@@ -22,7 +22,7 @@ MSG_FACE_END        = 5
 
 def read(s, mtcnn, resnet, encryptor, batch_encoder):
     # 接受文件名的长度
-    file_len = struct.unpack('Q', s.recv(8))[0]
+    file_len = struct.unpack('Q', s.recv(MSG_TYPE_SIZE))[0]
     
     # 接受文件名
     file = s.recv(file_len).decode('utf-8')
@@ -146,7 +146,7 @@ def main():
     
     while True:
         # 接收客户端数据
-        flag = struct.unpack('Q', s.recv(8, socket.MSG_WAITALL))[0]
+        flag = struct.unpack('Q', s.recv(MSG_TYPE_SIZE, socket.MSG_WAITALL))[0]
         
         # 如果flag为0，表示客户端请求关闭连接
         if flag == MSG_CLOSE:

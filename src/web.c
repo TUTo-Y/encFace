@@ -210,15 +210,6 @@ bool getFaceInfo(list *face)
     ret = send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送查找请求错误: %s\n", strerror(errno));
 
-    // 发送身份ID长度(size_t)
-    size_t id_size = strlen(USER_ID);
-    ret = send(Global.sock_s, (char *)&id_size, sizeof(size_t), 0);
-    CHECK(ret != INADDR_NONE, "向远程服务器发送身份ID长度错误: %s\n", strerror(errno));
-
-    // 发送身份ID(char*)
-    ret = send(Global.sock_s, (char *)USER_ID, id_size, 0);
-    CHECK(ret != INADDR_NONE, "向远程服务器发送身份ID错误: %s\n", strerror(errno));
-
     // 发送需要验证的人脸总数量(size_t)
     count = listLen(face);
     ret = send(Global.sock_s, (char *)&count, sizeof(size_t), 0);
@@ -231,39 +222,21 @@ bool getFaceInfo(list *face)
     {
         DEBUG("正在向远程服务器发送第%d个人脸特征向量\n", ++count);
 
-        char k[ZUC_KEY_SIZE + ZUC_IV_SIZE] = {0}; // ZUC的key和iv
-        data *zucOut = NULL;                      // ZUC加密后的数据
-        data *sm9Out = NULL;                      // SM9加密后的数据
+        // 发送BGV加密后的长度
+        ret = send(Global.sock_s, (char *)&(((vector *)node->data)->v->size), sizeof(size_t), 0);
+        CHECK(ret != INADDR_NONE, "在向远程服务器发送第%d个人脸特征向量时, 发送BGV加密后的长度错误: %s\n", count, strerror(errno));
 
-        // 进行ZUC加密数据
-        zucEnc(((vector *)node->data)->v, &zucOut, k, k + ZUC_KEY_SIZE);
-
-        // 进行SM9加密ZUC密钥
-        sm9Out = Malloc(SM9_MAX_CIPHERTEXT_SIZE);
-        sm9_encrypt(&Global.SM9master, USER_ID, strlen(USER_ID), k, sizeof(k), sm9Out->data, &sm9Out->size);
-
-        // 发送经过sm9加密的ZUC密钥的长度(size_t)
-        ret = send(Global.sock_s, (char *)&sm9Out->size, sizeof(size_t), 0);
-        CHECK(ret != INADDR_NONE, "在向远程服务器发送第%d个人脸特征向量时, 发送经过sm9加密的ZUC密钥长度错误: %s\n", count, strerror(errno));
-
-        // 发送经过sm9加密的ZUC密钥(char*)
-        ret = send(Global.sock_s, (char *)sm9Out->data, sm9Out->size, 0);
-        CHECK(ret != INADDR_NONE, "在向远程服务器发送第%d个人脸特征向量时, 发送经过sm9加密的ZUC密钥错误: %s\n", count, strerror(errno));
-
-        // 发送经过ZUC加密后数据的长度(size_t)
-        ret = send(Global.sock_s, (char *)&zucOut->size, sizeof(size_t), 0);
-        CHECK(ret != INADDR_NONE, "在向远程服务器发送第%d个人脸特征向量时, 发送ZUC加密后的数据的长度错误: %s\n", count, strerror(errno));
-
-        // 发送经过ZUC加密后数据的数据(char*)
-        ret = send(Global.sock_s, (char *)zucOut->data, zucOut->size, 0);
-        CHECK(ret != INADDR_NONE, "在向远程服务器发送第%d个人脸特征向量时, 发送ZUC加密后的数据错误: %s\n", count, strerror(errno));
-
-        // 释放内存
-        Free(zucOut);
-        Free(sm9Out);
+        // 发送BGV加密后的数据
+        ret = send(Global.sock_s, (char *)(((vector *)node->data)->v->data), ((vector *)node->data)->v->size, 0);
+        CHECK(ret != INADDR_NONE, "在向远程服务器发送第%d个人脸特征向量时, 发送BGV加密后的数据错误: %s\n", count, strerror(errno));
 
         node = node->next;
     }
+
+    // 生成ZUC密钥流
+    size_t k_n = TO32(sizeof(msg)) / sizeof(ZUC_UINT32);
+    ZUC_UINT32 *k = malloc(k_n * sizeof(ZUC_UINT32));
+    zuc_generate_keystream(&Global.ZUCstate, k_n, k);
 
     // 接受服务器回馈
     DEB(count = 0);
@@ -278,15 +251,24 @@ bool getFaceInfo(list *face)
         // 如果人物存在, 则接受人物信息
         if (((vector *)node->data)->flag == HV)
         {
+            // 加密数据
             ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->info), sizeof(msg), MSG_WAITALL);
             CHECK(ret != INADDR_NONE, "在从远程服务器接受第%d个人脸数据时, 接受服务器回馈msg错误: %s\n", count, strerror(errno));
+
+            // 对数据进行解密
+            for (int i = 0; i < k_n; i++)
+                ((ZUC_UINT32 *)&(((vector *)node->data)->info))[i] ^= k[i];
         }
 
         node = node->next;
     }
 
+    // 释放资源
+    free(k);
     return true;
 error:
+    // 释放资源
+    free(k);
     return false;
 }
 
@@ -306,76 +288,93 @@ bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *mkey)
     // 检查参数
     if (!ID || !skey || !mkey)
         return false;
-
+DEBUG("1\n");
     // 生成sm2密钥对
     ret = sm2_key_generate(mkey);
     CHECK(ret == 1, "生成sm2密钥对错误\n");
 
-    // 获取公钥
+DEBUG("2\n");
+    // 获取sm2公钥的pem数据
     data *pub = NULL;
     sm2_public_key_info_to_pem_data(mkey, &pub);
 
+DEBUG("3\n");
     // 向服务器发送注册请求
     msgs = MSG_REGISTER;
     ret = send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送注册请求错误: %s\n", strerror(errno));
 
+DEBUG("4\n");
     // 加密ID
     ret = sm2_encrypt(skey, ID, strlen(ID), textCipher, &textCipherSize);
     CHECK(ret == 1, "加密ID错误\n");
 
+DEBUG("5\n");
     // 发送ID密文长度(size_t)
     ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送ID密文长度错误: %s\n", strerror(errno));
 
+DEBUG("6\n");
     // 发送ID密文(char*)
     ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送ID密文错误: %s\n", strerror(errno));
 
+DEBUG("7\n");
     // 加密公钥
     ret = sm2_encrypt(skey, pub->data, pub->size, textCipher, &textCipherSize);
     CHECK(ret == 1, "加密公钥错误\n");
 
+DEBUG("8\n");
     // 发送公钥密文长度(size_t)
     ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送公钥密文长度错误: %s\n", strerror(errno));
 
+DEBUG("9\n");
     // 发送公钥密文(char*)
     ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送公钥密文错误: %s\n", strerror(errno));
 
+DEBUG("10\n");
     // 接受我的ID的密文长度
     ret = recv(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), MSG_WAITALL);
     CHECK(ret != INADDR_NONE, "从远程服务器接受我的ID的密文长度错误: %s\n", strerror(errno));
 
+DEBUG("11\n");
     // 接受我的ID的密文
     ret = recv(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
     CHECK(ret != INADDR_NONE, "从远程服务器接受我的ID的密文错误: %s\n", strerror(errno));
 
+DEBUG("12\n");
     // 解密我的ID
     ret = sm2_decrypt(mkey, textCipher, textCipherSize, textPlaint, &textPlaintSize);
     CHECK(ret == 1, "解密我的ID错误\n");
 
+DEBUG("13\n");
     // 校验我的ID
     textPlaint[textPlaintSize] = '\0';
     CHECK(strcmp(ID, textPlaint) == 0, "接受到得ID是错误的:[%s]\n", textPlaint);
 
+DEBUG("14\n");
     // 加密ID
     ret = sm2_encrypt(skey, ID, strlen(ID), textCipher, &textCipherSize);
     CHECK(ret == 1, "加密ID错误\n");
 
+DEBUG("15\n");
     // 发送ID密文长度(size_t)
     ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送ID密文长度错误: %s\n", strerror(errno));
 
+DEBUG("16\n");
     // 发送ID密文(char*)
     ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送ID密文错误: %s\n", strerror(errno));
 
+DEBUG("17\n");
     // 接受消息
     ret = recv(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
     CHECK(ret != INADDR_NONE, "从远程服务器接受消息错误: %s\n", strerror(errno));
 
+DEBUG("18\n");
     // 检查是否注册成功
     CHECK(msgs == MSG_SUCESS, "注册失败\n");
 
@@ -393,9 +392,6 @@ error:
 bool loginUser(const char *ID)
 {
     int ret;
-
-
-
 
     return true;
 error:
