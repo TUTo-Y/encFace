@@ -48,6 +48,9 @@ python安装依赖`pip install --upgrade torch numpy opencv-python pillow facene
 # 主程序
 
 主程序使用C，运行makefile编译出encFace.exe即可
+使用前请在include/config.h修改服务器等配置, 然后使用make编译
+
+- __注意__ : 在external/Gmssl中编译gmssl库，pySEAL在external/SEAL-Python中有3.11版本对应的库
 
 # 人脸识别服务端
 
