@@ -15,7 +15,7 @@
  * \param key ZUC密钥
  * \param iv ZUC初始化向量
  * \return
-*/
+ */
 
 bool userAdd(const char *filename, const char *ID, const SM2_KEY *sm2_key, const uint8_t key[ZUC_KEY_SIZE], const uint8_t iv[ZUC_KEY_SIZE])
 {
@@ -53,10 +53,8 @@ bool userAdd(const char *filename, const char *ID, const SM2_KEY *sm2_key, const
     fwrite(&private_key_info_len, sizeof(size_t), 1, file);               // 保存私钥长度
     fwrite(private_key_info_p, sizeof(char), private_key_info_len, file); // 保存私钥
 
-    // 保存ZUC密钥
+    // 保存ZUC密钥和初始化向量
     fwrite(key, sizeof(uint8_t), ZUC_KEY_SIZE, file);
-
-    // 保存ZUC初始化向量
     fwrite(iv, sizeof(uint8_t), ZUC_KEY_SIZE, file);
 
     fclose(file);
@@ -71,7 +69,7 @@ bool userAdd(const char *filename, const char *ID, const SM2_KEY *sm2_key, const
  * \param key ZUC密钥
  * \param iv ZUC初始化向量
  * \return
-*/
+ */
 bool userGet(const char *filename, const char *ID, SM2_KEY *sm2_key, uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_KEY_SIZE])
 {
     // 检查参数

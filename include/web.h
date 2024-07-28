@@ -1,15 +1,16 @@
 #ifndef _WEB_H
 #define _WEB_H
 
+#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 
 #include "config.h"
 #include "enc.h"
@@ -28,8 +29,9 @@ typedef size_t MSG_TYPE;               // 消息类型
 
 #define MSG_REGISTER 6         // 注册请求
 #define MSG_REGISTER_USER_IN 7 // 注册用户存在
+#define MSG_REGISTER_USER_NO 8 // 注册用户不存在
 
-#define MSG_LOGIN 8 // 登录请求
+#define MSG_LOGIN 9 // 登录请求
 
 /**
  * \brief 建立与远程服务器的连接

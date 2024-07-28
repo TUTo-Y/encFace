@@ -6,6 +6,7 @@
 int main()
 {
     SM2_KEY key;
+    SM2_KEY key2;
     SM2_KEY public;
     SM2_KEY private;
     FILE *fp = NULL;

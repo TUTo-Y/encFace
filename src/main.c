@@ -12,8 +12,8 @@ int main(int argc, char *argv[])
     // 初始化gtk
     gtk_init(&argc, &argv);
 
-    // // 设置调试控制台支持字符
-    // DEB(SetConsoleOutputCP(CP_UTF8));
+    // 设置调试控制台支持中文字符
+    setlocale(LC_ALL, "zh_CN.UTF-8");
 
     // 初始化与远程服务器的连接
     DEBUG("正在连接到远程服务器...\n");
@@ -64,6 +64,9 @@ error:
 
     // 关闭与远程服务器的连接
     closeServer();
+
+    // 退出gtk
+    gtk_main_quit();
 
     return 0;
 }

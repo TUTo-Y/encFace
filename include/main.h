@@ -6,13 +6,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <locale.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 #include <gtk-3.0/gtk/gtk.h>
-#include <pthread.h>
 
 #include "config.h"
 #include "data.h"

@@ -287,7 +287,8 @@ unsigned int gui_login()
 
     // 渲染
     Global.quit = 1;
-    while (getThread() == false && Global.quit)
+    // while (getThread() == false && Global.quit)
+    while (Global.quit)
     {
         // 事件处理
         SDL_Event event = {0};
@@ -400,7 +401,7 @@ unsigned int gui_login()
                             setThread(true);
 
                             // 创建线程
-                            strncpy(Global.name, name.textIn, sizeof(Global.name) - 1);
+                            strcpy(Global.name, name.textIn);
                             pthread_create(&Global.thread, NULL, login, &loginRet);
                         }
                     }
@@ -423,8 +424,9 @@ unsigned int gui_login()
                             setThread(true);
 
                             // 创建线程
-                            strncpy(Global.name, name.textIn, sizeof(Global.name) - 1);
+                            strcpy(Global.name, name.textIn);
                             pthread_create(&Global.thread, NULL, reg, &loginRet);
+                            // reg(&loginRet);
                         }
                     }
                 }
@@ -608,11 +610,11 @@ void *login(void *arg)
     uint8_t iv[ZUC_KEY_SIZE] = {0};
 
     // 获取用户信息
-    ret = userGet(USER_CONFIG, Global.name, &Global.SM2user, key, iv);
-    CHECK(ret == true, "未在本地检测到该用户");
+    // ret = userGet(USER_CONFIG, Global.name, &Global.SM2user, key, iv);
+    // CHECK(ret == true, "未在本地检测到该用户");
 
-    // 计算出ZUC密钥
-    zuc_init(&Global.ZUCstate, key, iv);
+    // // 计算出ZUC密钥
+    // zuc_init(&Global.ZUCstate, key, iv);
 
     // 与在服务端登陆
 
@@ -631,11 +633,11 @@ void *reg(void *arg)
     int ret;
     uint8_t key[ZUC_KEY_SIZE] = {0};
     uint8_t iv[ZUC_KEY_SIZE] = {0};
-
+    
     // 向服务器请求注册
     memset(&Global.SM2user, 0, sizeof(SM2_KEY));
     ret = registerUser(Global.name, &Global.SM2server, &Global.SM2user);
-    CHECK(ret == true, "注册失败\n");
+    CHECK(ret == true);
 
     // 随机生成ZUC密钥和初始化向量
     zucKeyVi(key, iv);
@@ -645,6 +647,7 @@ void *reg(void *arg)
     CHECK(ret == true, "写入配置文件失败\n");
 
     DEBUG("注册成功\n");
+
 error:
     setThread(false);
 }

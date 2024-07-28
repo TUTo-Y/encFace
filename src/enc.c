@@ -77,9 +77,9 @@ void sm2_public_key_info_to_pem_data(const SM2_KEY *key, data **out)
     sm2_public_key_info_to_pem(key, file);
 
     // 读取文件大小
-    fseek(file, 0, SEEK_END);
+    fseek(file, 0L, SEEK_END);
     size = ftell(file);
-    rewind(file);
+    fseek(file, 0L, SEEK_SET);
 
     // 读取文件
     *out = Malloc(size);
