@@ -127,18 +127,14 @@ unsigned int gui_login()
     // 创建渲染器
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     CHECK(renderer != NULL, "创建渲染器失败 : %s\n", SDL_GetError());
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    // 设置渲染器
-    ret = SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    CHECK(ret == 0, "设置渲染器错误 : %s\n", SDL_GetError());
-
-    // 读取背景图片
+    // 读取背景图片并转换图片格式
     SDL_Surface *tmp = IMG_Load(LOGIN_IMAGE);
     if (!tmp)
-        SDL_CreateRGBSurfaceWithFormat(0, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
-
-    // 转换图片格式
+        tmp = SDL_CreateRGBSurfaceWithFormat(0, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
     SDL_Surface *surface = SDL_ConvertSurfaceFormat(tmp, SDL_PIXELFORMAT_RGBA32, 0);
+    SDL_FreeSurface(tmp);
     CHECK(surface != NULL, "转换图片格式失败 : %s\n", SDL_GetError());
 
     // 原图像数据
@@ -286,9 +282,14 @@ unsigned int gui_login()
     setThread(false);
 
     // 渲染
-    Global.quit = 1;
-    // while (getThread() == false && Global.quit)
-    while (Global.quit)
+
+    /**
+     * 全局退出标识由线程设置
+     * 线程退出标识由消息循环设置
+     */
+    Global.quit = 1; // 全局退出标识
+    int quit = 1;    // 线程退出标识
+    while (getThread() == true ? quit : Global.quit && quit)
     {
         // 事件处理
         SDL_Event event = {0};
@@ -300,7 +301,7 @@ unsigned int gui_login()
             switch (event.type)
             {
             case SDL_QUIT:
-                Global.quit = 0;
+                quit = 0;
                 break;
 
             case SDL_MOUSEMOTION: // 移动事件
@@ -426,7 +427,6 @@ unsigned int gui_login()
                             // 创建线程
                             strcpy(Global.name, name.textIn);
                             pthread_create(&Global.thread, NULL, reg, &loginRet);
-                            // reg(&loginRet);
                         }
                     }
                 }
@@ -570,18 +570,16 @@ unsigned int gui_login()
             SDL_Delay(FPS_MS - frameTime);
     }
 
-error:
-
     // 释放资源
-    SDL_FreeSurface(loginTextSurface);
-    SDL_DestroyTexture(loginTextTexture);
-    freeEBO(&loginEBOA);
-    freeEBO(&loginEBOB);
-
     SDL_FreeSurface(regTextSurface);
     SDL_DestroyTexture(regTextTexture);
     freeEBO(&regEBOA);
     freeEBO(&regEBOB);
+
+    SDL_FreeSurface(loginTextSurface);
+    SDL_DestroyTexture(loginTextTexture);
+    freeEBO(&loginEBOA);
+    freeEBO(&loginEBOB);
 
     SDL_DestroyTexture(nameTexture);
 
@@ -596,11 +594,13 @@ error:
     SDL_FreeSurface(surface_tar);
     SDL_FreeSurface(surface_src);
     SDL_FreeSurface(surface);
-    SDL_FreeSurface(tmp);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 
     return loginRet;
+
+error:
+    return LOGIN_ERROR;
 }
 
 void *login(void *arg)
@@ -610,19 +610,20 @@ void *login(void *arg)
     uint8_t iv[ZUC_KEY_SIZE] = {0};
 
     // 获取用户信息
-    // ret = userGet(USER_CONFIG, Global.name, &Global.SM2user, key, iv);
-    // CHECK(ret == true, "未在本地检测到该用户");
+    ret = userGet(USER_CONFIG, Global.name, &Global.SM2user, key, iv);
+    CHECK(ret == true, "未在本地检测到该用户");
 
-    // // 计算出ZUC密钥
-    // zuc_init(&Global.ZUCstate, key, iv);
+    // 计算出ZUC密钥
+    zuc_init(&Global.ZUCstate, key, iv);
 
     // 与在服务端登陆
-
+    ret = loginUser(Global.name, &Global.SM2server, &Global.SM2user);
+    CHECK(ret == true, "登陆失败\n");
 
     // 成功登陆
     Global.quit = 0;
     *(unsigned int *)arg = LOGIN_SUCCESS;
-    
+
 error:
     setThread(false);
     return NULL;
@@ -633,7 +634,7 @@ void *reg(void *arg)
     int ret;
     uint8_t key[ZUC_KEY_SIZE] = {0};
     uint8_t iv[ZUC_KEY_SIZE] = {0};
-    
+
     // 向服务器请求注册
     memset(&Global.SM2user, 0, sizeof(SM2_KEY));
     ret = registerUser(Global.name, &Global.SM2server, &Global.SM2user);

@@ -70,7 +70,14 @@
         "chrono": "c",
         "typeindex": "c",
         "socket.h": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "vector": "c",
+        "user.h": "c",
+        "expected": "c",
+        "__locale": "c",
+        "ios": "c",
+        "bitset": "c",
+        "atomic": "c"
     },
     "cmake.sourceDirectory": "/home/tuto/github/enc-face/external/SEAL-Python/SEAL/native/tests/seal/util"
 }

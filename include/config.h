@@ -4,9 +4,11 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
+#include "color.h"
+
 // debug
 #ifdef _DEBUG
-#define ERR(...) fprintf(stderr, "\x1B[91m" __VA_ARGS__), fprintf(stderr, "\x1B[0m");
+#define ERR(...) fprintf(stderr, _BRED __VA_ARGS__), fprintf(stderr, RESET);
 #define DEBUG(...) fprintf(stdout, __VA_ARGS__)
 #define DEB(...) __VA_ARGS__
 #define REL(...)
@@ -27,6 +29,9 @@
             goto error;       \
         }                     \
     } while (0)
+
+
+
 
 #define VERSION "encFace 2.0" // encFace版本
 

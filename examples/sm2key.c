@@ -14,23 +14,24 @@ int main()
     // 生产密钥对
     sm2_key_generate(&key);
 
-    // // 保存公钥
-    // fp = fopen("sm2_public_key.pem", "wb");
-    // sm2_public_key_info_to_pem(&key, fp);
-    // fclose(fp);
+    // 保存公钥
+    fp = fopen("sm2_public_key.pem", "w");
+    sm2_public_key_info_to_pem(&key, fp);
+    fclose(fp);
 
-    // // 保存私钥
-    // fp = fopen("sm2_private_key.pem", "wb");
+    // 保存私钥
+    fp = fopen("sm2_private_key.pem", "w");
     // sm2_private_key_info_to_pem(&key, fp);
-    // fclose(fp);
+    sm2_private_key_info_encrypt_to_pem(&key, "password", fp);
+    fclose(fp);
 
     // 读取公钥
-    fp = fopen("sm2_public_key.pem", "rb");
+    fp = fopen("sm2_public_key.pem", "r");
     sm2_public_key_info_from_pem(&public, fp);
     fclose(fp);
 
     // 读取私钥
-    fp = fopen("sm2_private_key.pem", "rb");
+    fp = fopen("sm2_private_key.pem", "r");
     sm2_private_key_info_decrypt_from_pem(&private, "password", fp);
     fclose(fp);
 

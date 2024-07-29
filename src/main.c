@@ -1,9 +1,15 @@
 #include "main.h"
-
 #undef main
+
+DEB(int test(int argc, char **argv));
 
 int main(int argc, char *argv[])
 {
+    DEB(
+        if (argc > 1) {
+            return test(argc, argv);
+        })
+
     int ret;
 
     /************* 初始化设置 *************/
@@ -15,22 +21,22 @@ int main(int argc, char *argv[])
     // 设置调试控制台支持中文字符
     setlocale(LC_ALL, "zh_CN.UTF-8");
 
-    // 初始化与远程服务器的连接
+    // 与远程服务器的连接
     DEBUG("正在连接到远程服务器...\n");
     ret = connectServer();
-    CHECK(ret == true, "无法连接到远程服务器\n");
+    CHECK(ret == true);
 
     // 启动facenet服务器并与facenet服务器的连接
     DEBUG("正在连接到facenet服务器...\n");
     ret = connectFaceNet();
-    CHECK(ret == true, "无法连接到facenet服务器\n");
+    CHECK(ret == true);
 
     // 初始化线程锁
-    ret = pthread_mutex_init(&Global.lock, NULL);
+    pthread_mutex_init(&Global.lock, NULL);
 
     // 读取sm2服务器公钥
     FILE *fp = fopen(SM2_PUBLIC, "r");
-    CHECK(fp, "无法打开"SM2_PUBLIC"\n");
+    CHECK(fp, "无法打开" SM2_PUBLIC "\n");
     sm2_public_key_info_from_pem(&Global.SM2server, fp);
     fclose(fp);
 
@@ -44,7 +50,7 @@ int main(int argc, char *argv[])
     CHECK(Global.font != NULL, "TTF_OpenFont: %s\n", TTF_GetError());
 
     // core gui
-    if(gui_login() == LOGIN_SUCCESS)
+    if (gui_login() == LOGIN_SUCCESS)
         gui_play();
 
 error:
@@ -65,16 +71,11 @@ error:
     // 关闭与远程服务器的连接
     closeServer();
 
-    // 退出gtk
-    gtk_main_quit();
-
     return 0;
 }
 
 static void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
-    char *path = (char *)data;
-    size_t size = PATH_MAX;
 
     // 获取文件路径
     if (response_id == GTK_RESPONSE_ACCEPT)
@@ -83,7 +84,7 @@ static void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer dat
 
         char *filename;
         filename = gtk_file_chooser_get_filename(chooser);
-        g_strlcpy(path, filename, size);
+        g_strlcpy((gchar *)data, filename, PATH_MAX);
         g_free(filename);
     }
 
@@ -96,7 +97,10 @@ bool selectImageFile(char *path, size_t size)
     GtkWidget *dialog;
     gint res;
 
-    // 初始化
+    if (path == NULL || size == 0)
+    {
+        return false;
+    }
     *path = '\0';
 
     // 创建文件选择对话框
@@ -111,21 +115,16 @@ bool selectImageFile(char *path, size_t size)
     // 设置文件选择对话框属性
     GtkFileFilter *filter = gtk_file_filter_new();
     gtk_file_filter_set_name(GTK_FILE_FILTER(filter), "图片文件");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Bb][Mm][Pp]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Gg][Ii][Ff]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Jj][Pp][Gg]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Jj][Pp][Ee][Gg]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Ll][Bb][Mm]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Pp][Cc][Xx]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Pp][Nn][Gg]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Pp][Nn][Mm]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Ss][Vv][Gg]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Tt][Gg][Aa]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Tt][Ii][Ff][Ff]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Ww][Ee][Bb][Pp]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Xx][Cc][Ff]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Xx][Pp][Mm]");
-    gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), "*.[Xx][Vv]");
+
+    const char *patterns[] = {
+        "*.[Bb][Mm][Pp]", "*.[Gg][Ii][Ff]", "*.[Jj][Pp][Gg]", "*.[Jj][Pp][Ee][Gg]",
+        "*.[Ll][Bb][Mm]", "*.[Pp][Cc][Xx]", "*.[Pp][Nn][Gg]", "*.[Pp][Nn][Mm]",
+        "*.[Ss][Vv][Gg]", "*.[Tt][Gg][Aa]", "*.[Tt][Ii][Ff][Ff]", "*.[Ww][Ee][Bb][Pp]",
+        "*.[Xx][Cc][Ff]", "*.[Xx][Pp][Mm]", "*.[Xx][Vv]"};
+
+    for (size_t i = 0; i < sizeof(patterns) / sizeof(patterns[0]); ++i)
+        gtk_file_filter_add_pattern(GTK_FILE_FILTER(filter), patterns[i]);
+
     gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
     g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(on_dialog_response), path);
     g_signal_connect(G_OBJECT(dialog), "destroy", G_CALLBACK(gtk_main_quit), NULL);
@@ -142,7 +141,7 @@ bool getThread()
 {
     bool ret;
     pthread_mutex_lock(&Global.lock);
-    ret = Global.thread_status != 0;
+    ret = Global.thread_status;
     pthread_mutex_unlock(&Global.lock);
     return ret;
 }

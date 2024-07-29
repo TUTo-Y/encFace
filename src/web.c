@@ -6,30 +6,33 @@
  */
 bool connectServer()
 {
-    struct sockaddr_in server; // 服务器地址
+    struct sockaddr_in server = {0}; // 服务器地址
     int ret;
 
     // 创建客户端socket
     Global.sock_s = socket(AF_INET, SOCK_STREAM, 0);
-    CHECK(Global.sock_s != -1, "创建socket错误 : %s\n", strerror(errno));
+    CHECK(Global.sock_s != INADDR_NONE);
 
     // 建立与服务器联系
     server.sin_family = AF_INET;              // IPv4
     server.sin_port = htons(PORT_S);          // 服务器端端口
     server.sin_addr.s_addr = inet_addr(IP_S); // 服务器地址
     ret = connect(Global.sock_s, (struct sockaddr *)&server, sizeof(server));
-    CHECK(ret != -1, "连接远程服务器错误: %s\n", strerror(errno));
+    CHECK(ret != INADDR_NONE);
 
     // 设置超时时间
     struct timeval timeout;
     timeout.tv_sec = 5;
     timeout.tv_usec = 0;
     ret = setsockopt(Global.sock_s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
-    CHECK(ret != -1, "设置 socket 接收超时失败: %s\n", strerror(errno));
+    CHECK(ret != INADDR_NONE);
 
     return true;
+
 error:
-    close(Global.sock_s);
+    ERR("无法连接到远程服务器：\n", strerror(errno));
+    if (Global.sock_s)
+        close(Global.sock_s);
     return false;
 }
 
@@ -39,24 +42,25 @@ error:
  */
 bool connectFaceNet()
 {
-    struct sockaddr_in server; // 服务器地址
+    struct sockaddr_in server = {0}; // 服务器地址
+    int listSocket = 0;
     int ret;
 
     // 在本地创建服务器程序
 #ifdef _DEBUG
-    system(" python " PYTHON_FACE "&");
+    system(" python3 " PYTHON_FACE "&");
 #else
-    system(" python " PYTHON_FACE "&");
+    system(" python3 " PYTHON_FACE "&");
 #endif
 
     // 创建监听socket
-    int listSocket = socket(AF_INET, SOCK_STREAM, 0);
-    CHECK(listSocket != -1, "创建socket错误: %s\n", strerror(errno));
+    listSocket = socket(AF_INET, SOCK_STREAM, 0);
+    CHECK(listSocket != INADDR_NONE);
 
     // 设置socket属性
     int optval = 1;
     setsockopt(listSocket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-    CHECK(ret != -1, "设置socket属性错误: %s\n", strerror(errno));
+    CHECK(ret != INADDR_NONE);
 
     // 设置本地服务器地址
     server.sin_family = AF_INET;              // IPv4
@@ -65,32 +69,36 @@ bool connectFaceNet()
 
     // 绑定socket到服务器地址
     ret = bind(listSocket, (struct sockaddr *)&server, sizeof(server));
-    CHECK(ret != -1, "绑定socket端口错误: %s\n", strerror(errno));
+    CHECK(ret != INADDR_NONE);
 
     // 设置监听时间
     struct timeval timeout = {0};
     timeout.tv_sec = 5;
     ret = setsockopt(listSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
-    CHECK(ret != -1, "设置监听超时时间错误: %s\n", strerror(errno));
+    CHECK(ret != INADDR_NONE);
 
     // 开始监听
     ret = listen(listSocket, 0);
-    CHECK(ret != -1, "监听socket错误: %s\n", strerror(errno));
+    CHECK(ret != INADDR_NONE);
 
-    // 接受客户端连接
+    // 接收客户端连接
     Global.sock_f = accept(listSocket, NULL, NULL);
-    CHECK(Global.sock_f != -1, "接受facenet端连接错误: %s\n", strerror(errno));
+    CHECK(Global.sock_f != INADDR_NONE);
 
     // 设置接收数据时间
     ret = setsockopt(Global.sock_f, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
-    CHECK(ret != -1, "设置超时时间错误: %s\n", strerror(errno));
+    CHECK(ret != INADDR_NONE);
 
-    close(listSocket);
+    if (Global.sock_f)
+        close(listSocket);
     return true;
 
 error:
-    close(listSocket);
-    close(Global.sock_f);
+    ERR("无法连接到facenet服务器：\n", strerror(errno));
+    if (listSocket)
+        close(listSocket);
+    if (Global.sock_f)
+        close(Global.sock_f);
     return false;
 }
 
@@ -161,7 +169,7 @@ bool getFaceVector(const char *file, list **head)
     DEB(size_t count = 0);
     while (true)
     {
-        // 接受请求(size_t)
+        // 接收请求(size_t)
         ret = recv(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
         CHECK(ret != INADDR_NONE, "从faceNet服务器接收faceNet服务器请求错误: %s\n", strerror(errno));
 
@@ -246,22 +254,22 @@ bool getFaceInfo(list *face)
     ZUC_UINT32 *k = malloc(k_n * sizeof(ZUC_UINT32));
     zuc_generate_keystream(&Global.ZUCstate, k_n, k);
 
-    // 接受服务器回馈
+    // 接收服务器回馈
     DEB(count = 0);
     node = face;
     while (node)
     {
-        // 接受服务器回馈人物存在标志
-        DEBUG("正在接受第%d个人脸数据\n", ++count);
+        // 接收服务器回馈人物存在标志
+        DEBUG("正在接收第%d个人脸数据\n", ++count);
         ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->flag), sizeof(int), MSG_WAITALL);
-        CHECK(ret != INADDR_NONE, "在从远程服务器接受第%d个人脸数据时, 接受服务器回馈flag错误: %s\n", count, strerror(errno));
+        CHECK(ret != INADDR_NONE, "在从远程服务器接收第%d个人脸数据时, 接收服务器回馈flag错误: %s\n", count, strerror(errno));
 
-        // 如果人物存在, 则接受人物信息
+        // 如果人物存在, 则接收人物信息
         if (((vector *)node->data)->flag == HV)
         {
             // 加密数据
             ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->info), sizeof(msg), MSG_WAITALL);
-            CHECK(ret != INADDR_NONE, "在从远程服务器接受第%d个人脸数据时, 接受服务器回馈msg错误: %s\n", count, strerror(errno));
+            CHECK(ret != INADDR_NONE, "在从远程服务器接收第%d个人脸数据时, 接收服务器回馈msg错误: %s\n", count, strerror(errno));
 
             // 对数据进行解密
             for (int i = 0; i < k_n; i++)
@@ -283,7 +291,7 @@ error:
 /**
  * \brief 注册
  */
-bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *mkey)
+bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *ukey)
 {
     int ret;
     MSG_TYPE msgs;
@@ -296,7 +304,7 @@ bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *mkey)
     data *pub_pem = NULL;
 
     // 检查参数
-    if (!ID || !skey || !mkey)
+    if (!ID || !skey || !ukey)
         return false;
 
     // 向服务器发送注册请求
@@ -317,22 +325,25 @@ bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *mkey)
     CHECK(ret == textCipherSize, "向远程服务器发送ID密文错误: %s\n", strerror(errno));
 
     // 检测用户是否存在
-    // ret = recv(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
-    // CHECK(ret == MSG_TYPE_SIZE, "从远程服务器接受用户是否存在错误: %s\n", strerror(errno));
-    // CHECK(msgs == MSG_REGISTER_USER_NO, "用户已存在\n");
+    ret = recv(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
+    CHECK(ret == MSG_TYPE_SIZE, "从远程服务器接收用户存在标识错误: %s\n", strerror(errno));
+    CHECK(msgs == MSG_REGISTER_USER_NO, "用户已存在\n");
 
     // 生成客户端sm2密钥对
-    ret = sm2_key_generate(mkey);
+    ret = sm2_key_generate(ukey);
     CHECK(ret == 1, "生成sm2密钥对错误\n");
 
     // 获取sm2公钥的pem数据
-    sm2_public_key_info_to_pem_data(mkey, &pub_pem);
+    sm2_public_key_info_to_pem_data(ukey, &pub_pem);
+
+    {
+
+        DEBUG("pem:%s\n", pub_pem->data);
+    }
 
     // 加密公钥
     ret = sm2_encrypt(skey, pub_pem->data, pub_pem->size, textCipher, &textCipherSize);
     CHECK(ret == 1, "加密公钥错误\n");
-
-    printf("公钥长度: %ld\n", textCipherSize);
 
     // 发送公钥密文长度(size_t)
     ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
@@ -342,21 +353,21 @@ bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *mkey)
     ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
     CHECK(ret == textCipherSize, "向远程服务器发送公钥密文错误: %s\n", strerror(errno));
 
-    // 接受我的ID的密文长度
+    // 接收我的ID的密文长度
     ret = recv(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), MSG_WAITALL);
-    CHECK(ret == sizeof(textCipherSize), "从远程服务器接受我的ID的密文长度错误: %s\n", strerror(errno));
+    CHECK(ret == sizeof(textCipherSize), "从远程服务器接收我的ID的密文长度错误: %s\n", strerror(errno));
 
-    // 接受我的ID的密文
+    // 接收我的ID的密文
     ret = recv(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
-    CHECK(ret == textCipherSize, "从远程服务器接受我的ID的密文错误: %s\n", strerror(errno));
+    CHECK(ret == textCipherSize, "从远程服务器接收我的ID的密文错误: %s\n", strerror(errno));
 
     // 解密我的ID
-    ret = sm2_decrypt(mkey, textCipher, textCipherSize, textPlaint, &textPlaintSize);
+    ret = sm2_decrypt(ukey, textCipher, textCipherSize, textPlaint, &textPlaintSize);
     CHECK(ret == 1, "解密我的ID错误\n");
 
     // 校验我的ID
     textPlaint[textPlaintSize] = '\0';
-    CHECK(strcmp(ID, textPlaint) == 0, "接受到得ID是错误的:[%s]\n", textPlaint);
+    CHECK(strcmp(ID, textPlaint) == 0, "接收到得ID是错误的:[%s]\n", textPlaint);
 
     // 加密ID
     ret = sm2_encrypt(skey, ID, strlen(ID), textCipher, &textCipherSize);
@@ -370,9 +381,9 @@ bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *mkey)
     ret = send(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
     CHECK(ret == textCipherSize, "向远程服务器发送ID密文错误: %s\n", strerror(errno));
 
-    // 接受消息
+    // 接收消息
     ret = recv(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
-    CHECK(ret == MSG_TYPE_SIZE, "从远程服务器接受消息错误: %s\n", strerror(errno));
+    CHECK(ret == MSG_TYPE_SIZE, "从远程服务器接收消息错误: %s\n", strerror(errno));
 
     // 检查是否注册成功
     CHECK(msgs == MSG_SUCESS, "注册失败\n");
@@ -388,9 +399,78 @@ error:
 /**
  * \brief 登录
  */
-bool loginUser(const char *ID)
+bool loginUser(const char *ID, const SM2_KEY *skey, const SM2_KEY *ukey)
 {
     int ret;
+    MSG_TYPE msgs;
+
+    uint8_t textCipher[SM2_MAX_CIPHERTEXT_SIZE] = {0}; // sm2密文
+    size_t textCipherSize = 0;                         // sm2密文大小
+    uint8_t textPlaint[SM2_MAX_PLAINTEXT_SIZE] = {0};  // sm2明文
+    size_t textPlaintSize = 0;                         // sm2明文大小
+
+    // 接收发送登陆请求
+    msgs = MSG_LOGIN;
+    ret = send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0);
+    CHECK(ret == MSG_TYPE_SIZE, "向远程服务器发送登陆请求错误: %s\n", strerror(errno));
+
+    // 加密ID
+    ret = sm2_encrypt(skey, ID, strlen(ID), textCipher, &textCipherSize);
+    CHECK(ret == 1, "加密ID错误\n");
+
+    // 发送ID密文长度(size_t)
+    ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
+    CHECK(ret == sizeof(textCipherSize), "向远程服务器发送ID密文长度错误: %s\n", strerror(errno));
+
+    // 发送ID密文(char*)
+    ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
+    CHECK(ret == textCipherSize, "向远程服务器发送ID密文错误: %s\n", strerror(errno));
+
+    // 接收是否存在
+    ret = recv(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
+    CHECK(ret == MSG_TYPE_SIZE, "从远程服务器接收用户存在标识错误: %s\n", strerror(errno));
+    CHECK(msgs == MSG_LOGIN_USER_IN, "用户不存在\n");
+
+    // 接收签名长度(size_t)
+    ret = recv(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), MSG_WAITALL);
+    CHECK(ret == sizeof(textCipherSize), "从远程服务器接收签名长度错误: %s\n", strerror(errno));
+
+    // 接收签名(char*)
+    ret = recv(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
+    CHECK(ret == textCipherSize, "从远程服务器接收签名错误: %s\n", strerror(errno));
+
+    {
+        data *pub_pem = NULL;
+        // 获取sm2公钥的pem数据
+        sm2_public_key_info_to_pem_data(ukey, &pub_pem);
+
+        DEBUG("pem:%s\n", pub_pem->data);
+
+        Free(pub_pem);
+    }
+
+    // 解密签名
+    ret = sm2_decrypt(ukey, textCipher, textCipherSize, textPlaint, &textPlaintSize);
+    CHECK(ret == 1, "解密签名错误\n");
+
+    // 加密签名
+    ret = sm2_encrypt(skey, textPlaint, textPlaintSize, textCipher, &textCipherSize);
+    CHECK(ret == 1, "加密签名错误\n");
+
+    // 发送签名长度(size_t)
+    ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
+    CHECK(ret == sizeof(textCipherSize), "向远程服务器发送签名长度错误: %s\n", strerror(errno));
+
+    // 发送签名(char*)
+    ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
+    CHECK(ret == textCipherSize, "向远程服务器发送签名错误: %s\n", strerror(errno));
+
+    // 接收结果
+    ret = recv(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
+    CHECK(ret == MSG_TYPE_SIZE, "从远程服务器接收消息错误: %s\n", strerror(errno));
+
+    // 检查是否登陆成功
+    CHECK(msgs == MSG_SUCESS, "登陆失败\n");
 
     return true;
 error:

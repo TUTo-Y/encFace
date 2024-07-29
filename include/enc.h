@@ -15,7 +15,7 @@
 
 /**
  * \brief 随即生成ZUC密钥和初始化向量
-*/
+ */
 void zucKeyVi(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_KEY_SIZE]);
 
 /**
@@ -42,5 +42,13 @@ bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const 
  * \param out sm2公钥信息
  */
 void sm2_public_key_info_to_pem_data(const SM2_KEY *key, data **out);
+
+/*
+ * \brief 从pem数据中获取sm2公钥信息
+ * \param key sm2公钥
+ * \param data pem数据
+ * \param size pem数据大小
+ */
+void sm2_public_key_info_from_pem_data(SM2_KEY *key, const char *data, size_t size);
 
 #endif

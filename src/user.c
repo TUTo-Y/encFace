@@ -16,7 +16,6 @@
  * \param iv ZUC初始化向量
  * \return
  */
-
 bool userAdd(const char *filename, const char *ID, const SM2_KEY *sm2_key, const uint8_t key[ZUC_KEY_SIZE], const uint8_t iv[ZUC_KEY_SIZE])
 {
     // 检查参数
@@ -32,7 +31,7 @@ bool userAdd(const char *filename, const char *ID, const SM2_KEY *sm2_key, const
 
     uint8_t public_key_info[512] = {0};           // sm2公钥信息
     uint8_t *public_key_info_p = public_key_info; // 保存sm2公钥信息
-    size_t public_key_info_len = 0;               //  sm2公钥信息长度
+    size_t public_key_info_len = 0;               // sm2公钥信息长度
 
     uint8_t private_key_info[512] = {0};            // sm2私钥信息
     uint8_t *private_key_info_p = private_key_info; // 保存sm2私钥信息

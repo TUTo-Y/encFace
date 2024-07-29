@@ -67,11 +67,11 @@ bool zucDec(const data *msg, data **out, const uint8_t key[ZUC_KEY_SIZE], const 
 
 void sm2_public_key_info_to_pem_data(const SM2_KEY *key, data **out)
 {
-    FILE *file = tmpfile();
-    size_t size = 0;
-
     if (!key || !out)
         return;
+
+    FILE *file = tmpfile();
+    size_t size = 0;
 
     // 将sm2公钥信息写入文件
     sm2_public_key_info_to_pem(key, file);
@@ -83,8 +83,25 @@ void sm2_public_key_info_to_pem_data(const SM2_KEY *key, data **out)
 
     // 读取文件
     *out = Malloc(size);
-    (*out)->size = size;
     fread((*out)->data, 1, size, file);
+
+    fclose(file);
+}
+
+void sm2_public_key_info_from_pem_data(SM2_KEY *key, const char *data, size_t size)
+{
+    if (!key || !data || size == 0)
+        return;
+
+    FILE *file = tmpfile();
+    
+    // 写入pem
+    fwrite(data, 1, size, file);
+    fseek(file, 0L, SEEK_SET);
+
+    // 读取pem
+    memset(key, 0, sizeof(SM2_KEY));
+    sm2_public_key_info_from_pem(key, file);
 
     fclose(file);
 }
