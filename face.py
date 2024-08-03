@@ -13,19 +13,21 @@ public_key_file = "BGV_public_key"
 
 MSG_TYPE_SIZE       = 8
 
-MSG_CLOSE = 0
-MSG_SUCESS = 1
-MSG_ERROR = 2
-MSG_GET_FACE_VECTOR = 3
-MSG_GET_FACE_INFO = 4
-MSG_FACE = 5
-MSG_FACE_END = 6
-MSG_REGISTER = 7
-MSG_REGISTER_USER_IN = 8
-MSG_REGISTER_USER_NO = 9
-MSG_LOGIN = 10
-MSG_LOGIN_USER_IN = 11
-MSG_LOGIN_USER_NO = 12
+MSG_CLOSE = 0               # 关闭连接消息
+MSG_SUCESS = 1              # 处理成功
+MSG_ERROR = 2               # 处理失败
+MSG_GET_FACE_VECTOR = 3     # 请求获取人脸特征向量
+MSG_FACE = 4                # 获取人脸特征向量
+MSG_FACE_END = 5            # 获取人脸特征向量结束
+MSG_GET_FACE_INFO = 6       # 请求获取人脸信息
+MSG_UPLOAD_FACE_INFO = 7    # 请求上传人物信息
+MSG_REGISTER = 8            # 注册请求
+MSG_REGISTER_USER_IN = 9    # 注册用户存在
+MSG_REGISTER_USER_NO = 10   # 注册用户不存在
+MSG_LOGIN = 11              # 登录请求
+MSG_LOGIN_USER_IN = 12      # 注册用户存在
+MSG_LOGIN_USER_NO = 13      # 注册用户不存在
+
 
 def read(s, mtcnn, resnet, encryptor, batch_encoder):
     # 接受文件名的长度

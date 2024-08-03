@@ -126,7 +126,8 @@ bool gbEvent(guiButton *gb, SDL_Event *e)
     switch (e->type)
     {
     case SDL_MOUSEMOTION: // 鼠标移动
-        if (SDL_TRUE == SDL_PointInRect(&(SDL_Point){e->motion.x, e->motion.y}, &gb->Rect))
+        if (SDL_TRUE == SDL_PointInRect(&(SDL_Point){e->motion.x, e->motion.y}, &gb->Rect) &&
+        e->motion.state != SDL_BUTTON_LMASK)
         {
             SETFLAG(gb->flag, guiButtonEnum_selected);
         }

@@ -15,6 +15,7 @@
 #include "draw.h"
 #include "gui_msg.h"
 #include "gui_text.h"
+#include "gui_edit.h"
 #include "gui_button.h"
 
 enum
@@ -34,13 +35,15 @@ enum
     guiPlayEnum_button_free_init,      // 按钮被释放动画开始
     guiPlayEnum_button_free_start,     // 按钮被释放动画
 
-    guiPlayEnum_watt_init,     // 处理等待
-    guiPlayEnum_watt_end, // 处理等待结束
+    guiPlayEnum_watt_init, // 处理等待
+    guiPlayEnum_watt_end,  // 处理等待结束
 
-    guiPlayEnum_image_ban,  // 图片被禁用(不再渲染和处理消息)
-    guiPlayEnum_image_enter // 图片被按下
+    guiPlayEnum_image_ban,   // 图片被禁用(不再渲染和处理消息)
+    guiPlayEnum_image_enter, // 图片被按下
+
+    guiPlayEnum_choice,      // 选择了该图片
+    guiPlayEnum_choice_enter // 确认选择了该图片
 };
-
 
 // 界面一数据
 typedef struct _gui_Play
@@ -64,6 +67,9 @@ typedef struct _gui_Play
     int time;  // 动画时间
     int time2; // 动画时间2
 
+    personal *choiceNode; // 被选中的节点
+    SDL_Point choicePos;  // 选择的坐标
+
     guiMsg *msg;            // 消息队列
     SDL_Renderer *renderer; // 渲染器
 } guiPlay;
@@ -81,6 +87,11 @@ typedef struct _faceThreadParam
  * \brief 选择图片
  */
 bool selectImageFile(char *path, size_t size);
+
+/**
+ * \brief 渲染用户信息
+ */
+void renderUserData(personal *p, SDL_Renderer *renderer);
 
 /**
  * \brief gui_play界面

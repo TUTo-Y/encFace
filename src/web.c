@@ -144,6 +144,9 @@ bool getFaceVector(const char *file, list *l)
     size_t size = 0;
     personal p = {0};
 
+    if(file == NULL || l == NULL)
+        goto error;
+
     // 向facenet服务器发送请求(size_t)
     MSG_TYPE msgs = MSG_GET_FACE_VECTOR;
     ret = send(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, 0);
@@ -194,7 +197,7 @@ bool getFaceVector(const char *file, list *l)
         addNodeToListEnd(l, addDataToNode(createNode(), &p, sizeof(p), true));
     }
     return true;
-    
+
 error:
     return false;
 }
@@ -226,26 +229,32 @@ bool getFaceInfo(personal *p)
     CHECK(ret != INADDR_NONE, "向远程服务器发送查找请求错误: %s\n", strerror(errno));
 
     // 发送特征向量大小(size_t)
-    send(Global.sock_s, (char *)&p->vector->size, sizeof(size_t), 0);
+    ret = send(Global.sock_s, (char *)&p->vector->size, sizeof(size_t), 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送特征向量大小错误: %s\n", strerror(errno));
 
     // 发送特征向量(char*)
-    send(Global.sock_s, (char *)p->vector->data, p->vector->size, 0);
+    ret = send(Global.sock_s, (char *)p->vector->data, p->vector->size, 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送特征向量错误: %s\n", strerror(errno));
 
     // 接收服务器回馈(是否检测到人物存在)
-    recv(Global.sock_s, (char *)&p->flag, sizeof(p->flag), MSG_WAITALL);
+    ret = recv(Global.sock_s, (char *)&p->flag, sizeof(p->flag), MSG_WAITALL);
+    CHECK(ret != INADDR_NONE, "从远程服务器接收人物存在标识错误: %s\n", strerror(errno));
 
     // 如果人物不存在, 则返回
     if (p->flag == NU)
         return true;
 
     // 接受被sm2加密后的ZUC密钥长度(size_t)
-    recv(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), MSG_WAITALL);
+    ret = recv(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), MSG_WAITALL);
+    CHECK(ret != INADDR_NONE, "从远程服务器接收ZUC密钥长度错误: %s\n", strerror(errno));
 
     // 接受被sm2加密后的ZUC密钥(char*)
-    recv(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
+    ret = recv(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
+    CHECK(ret != INADDR_NONE, "从远程服务器接收ZUC密钥错误: %s\n", strerror(errno));
 
     // 解密ZUC密钥
-    sm2_decrypt(&Global.SM2user, textCipher, textCipherSize, textPlaint, &textPlaintSize);
+    ret = sm2_decrypt(&Global.SM2user, textCipher, textCipherSize, textPlaint, &textPlaintSize);
+    CHECK(ret == 1, "解密ZUC密钥错误\n");
     memcpy(key, textPlaint, ZUC_KEY_SIZE);
     memcpy(iv, textPlaint + ZUC_KEY_SIZE, ZUC_IV_SIZE);
 
@@ -253,13 +262,14 @@ bool getFaceInfo(personal *p)
     zuc_init(&state, key, iv);
 
     // 接受服务端传送来的人物数据(char*)
-    recv(Global.sock_s, (char *)&p->info, sizeof(p->info), MSG_WAITALL);
+    ret = recv(Global.sock_s, (char *)&p->info, sizeof(p->info), MSG_WAITALL);
+    CHECK(ret != INADDR_NONE, "从远程服务器接收人物数据错误: %s\n", strerror(errno));
 
     // 解密人物数据
     zucEnc((byte *)&p->info, (byte *)&p->info, sizeof(p->info), &state);
     zucEnc((byte *)&p->info, (byte *)&p->info, sizeof(p->info), &Global.ZUCstate);
 
-    DEBUG("姓名: %s\n", p->info.name);
+    DEBUG("接受到人物姓名: %s\n", p->info.name);
 
     return true;
 error:
@@ -273,7 +283,70 @@ error:
  */
 bool uploadFaceInfo(const personal *p)
 {
-    
+    int ret;
+    uint8_t key[ZUC_KEY_SIZE] = {0};
+    uint8_t iv[ZUC_IV_SIZE] = {0};
+    ZUC_STATE state;
+
+    uint8_t textCipher[SM2_MAX_CIPHERTEXT_SIZE] = {0}; // sm2密文
+    size_t textCipherSize = 0;                         // sm2密文大小
+    uint8_t textPlaint[SM2_MAX_PLAINTEXT_SIZE] = {0};  // sm2明文
+    size_t textPlaintSize = 0;                         // sm2明文大小
+
+    if(p == NULL)
+        goto error;
+
+    // 发送请求
+    MSG_TYPE msgs = MSG_UPLOAD_FACE_INFO;
+    ret = send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送上传请求错误: %s\n", strerror(errno));
+
+    // 发送特征向量大小(size_t)
+    ret = send(Global.sock_s, (char *)&p->vector->size, sizeof(size_t), 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送特征向量大小错误: %s\n", strerror(errno));
+
+    // 发送特征向量(char*)
+    ret = send(Global.sock_s, (char *)p->vector->data, p->vector->size, 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送特征向量错误: %s\n", strerror(errno));
+
+    // 生成ZUC密钥
+    zucKeyVi(key, iv);
+    zuc_init(&state, key, iv);
+
+    // sm2加密ZUC密钥
+    memcpy(textPlaint, key, ZUC_KEY_SIZE);
+    memcpy(textPlaint + ZUC_KEY_SIZE, iv, ZUC_IV_SIZE);
+    textPlaintSize = ZUC_KEY_SIZE + ZUC_IV_SIZE;
+    ret = sm2_encrypt(&Global.SM2server, textPlaint, textPlaintSize, textCipher, &textCipherSize);
+    CHECK(ret == 1, "加密ZUC密钥错误\n");
+
+    // 发送ZUC密钥长度(size_t)
+    ret = send(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送ZUC密钥长度错误: %s\n", strerror(errno));
+
+    // 发送ZUC密钥(char*)
+    ret = send(Global.sock_s, (char *)textCipher, textCipherSize, 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送ZUC密钥错误: %s\n", strerror(errno));
+
+    // 使用ZUC密钥加密人物数据
+    basicMsg tmp = {0};
+    memcpy(&tmp, &p->info, sizeof(p->info));
+    // zucEnc((byte *)&tmp, (byte *)&tmp, sizeof(tmp), &Global.ZUCstate);
+    zucEnc((byte *)&tmp, (byte *)&tmp, sizeof(tmp), &state);
+
+    // 发送人物数据(char*)
+    ret = send(Global.sock_s, (char *)&tmp, sizeof(tmp), 0);
+    CHECK(ret != INADDR_NONE, "向远程服务器发送人物数据错误: %s\n", strerror(errno));
+
+    // 接收结果
+    ret = recv(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, MSG_WAITALL);
+    CHECK(ret != INADDR_NONE, "从远程服务器接收消息错误: %s\n", strerror(errno));
+
+    CHECK(msgs == MSG_SUCESS, "上传人物数据失败\n");
+
+    return true;
+error:
+    return false;
 }
 
 /**

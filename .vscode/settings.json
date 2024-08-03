@@ -21,6 +21,12 @@
         "string": "c",
         "unordered_map": "c",
         "unordered_set": "c",
-        "vector": "c"
+        "vector": "c",
+        "gui_edit.h": "c",
+        "chrono": "c",
+        "typeindex": "c",
+        "typeinfo": "c",
+        "text_encoding": "c",
+        "numbers": "c"
     }
 }

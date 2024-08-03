@@ -181,6 +181,28 @@ void gtEvent(guiText *gt, SDL_Event *e)
         gtReRender(gt);
 }
 
+
+/**
+ * \brief 设置文本
+ * \param gt 文本框指针
+ * \return void
+ */
+void gtSetText(guiText *gt, char *text)
+{
+    if (text == NULL || *text == '\0')
+    {
+        gt->textIn = realloc(gt->textIn, 1);
+        gt->textIn[0] = '\0';
+    }
+    else
+    {
+        gt->textIn = realloc(gt->textIn, strlen(text) + 1);
+        strcpy(gt->textIn, text);
+    }
+
+    gtReRender(gt);
+}
+
 /**
  * \brief 重新渲染文本
  */

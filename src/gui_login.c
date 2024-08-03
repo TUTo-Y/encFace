@@ -149,11 +149,11 @@ unsigned int gui_login()
     SDL_FRect backRect = {WINDOW_LOGIN_DEFAULT_WIDTH / 2.0f - 300.0f, WINDOW_LOGIN_DEFAULT_HEIGHT / 2.0f - 150.0f,
                           600.0f, 300.0f};
     SDL_Texture *backTexture = drawRoundRect(backRect.w, backRect.h,
-                                               (SDL_Color[]){(SDL_Color){0x74, 0xEB, 0xD5, 0xFF},
-                                                             (SDL_Color){0xAC, 0xB6, 0xE5, 0xFF},
-                                                             (SDL_Color){0xAC, 0xB6, 0xE5, 0xFF},
-                                                             (SDL_Color){0x74, 0xEB, 0xD5, 0xFF}},
-                                               0.1f, renderer, NULL);
+                                             (SDL_Color[]){(SDL_Color){0x74, 0xEB, 0xD5, 0xFF},
+                                                           (SDL_Color){0xAC, 0xB6, 0xE5, 0xFF},
+                                                           (SDL_Color){0xAC, 0xB6, 0xE5, 0xFF},
+                                                           (SDL_Color){0x74, 0xEB, 0xD5, 0xFF}},
+                                             0.1f, renderer, NULL);
 
     /* 消息框 */
     guiMsg msg = {0};
@@ -203,13 +203,14 @@ unsigned int gui_login()
            0.2f,
            &(SDL_Color[3][4])
            // 一般状态
-           {{{0x00, 0xBF, 0xFF, 0xFF}, {0x00, 0xBF, 0xFF, 0xFF}, {0x00, 0xBF, 0xFF, 0xFF}, {0x00, 0xBF, 0xFF, 0xFF}},
+           {{{0xB2, 0xFE, 0xFA, 0xFF}, {0x0E, 0xD2, 0xF7, 0xFF}, {0x0E, 0xD2, 0xF7, 0xFF}, {0xB2, 0xFE, 0xFA, 0xFF}},
             // 选中状态
-            {{0x0F, 0xA7, 0xFF, 0xFF}, {0x0F, 0xA7, 0xFF, 0xFF}, {0x0F, 0xA7, 0xFF, 0xFF}, {0x0F, 0xA7, 0xFF, 0xFF}},
+            {{0x56, 0xCC, 0xF2, 0xFF}, {0x2F, 0x80, 0xED, 0xFF}, {0x2F, 0x80, 0xED, 0xFF}, {0x56, 0xCC, 0xF2, 0xFF}},
             // 按下状态
-            {{0x1E, 0x90, 0xFF, 0xFF}, {0x1E, 0x90, 0xFF, 0xFF}, {0x1E, 0x90, 0xFF, 0xFF}, {0x1E, 0x90, 0xFF, 0xFF}}},
+            {{0x40, 0xC0, 0xFF, 0xFF}, {0x2C, 0x70, 0xF0, 0xFF}, {0x2C, 0x70, 0xF0, 0xFF}, {0x40, 0xC0, 0xFF, 0xFF}}},
            NULL,
            renderer);
+
 
     /* 注册按钮 */
     guiButton regButton = {0};
@@ -226,7 +227,7 @@ unsigned int gui_login()
            0.2f,
            &(SDL_Color[3][4])
            // 一般状态
-           {{{0xFF, 0xFF, 0xFF, 0xFF}, {0xFF, 0xFF, 0xFF, 0xFF}, {0xFF, 0xFF, 0xFF, 0xFF}, {0xFF, 0xFF, 0xFF, 0xFF}},
+           {{{0xEC, 0xE9, 0xE6, 0xFF}, {0xFF, 0xFF, 0xFF, 0xFF}, {0xFF, 0xFF, 0xFF, 0xFF}, {0xEC, 0xE9, 0xE6, 0xFF}},
             // 选中状态
             {{0xE0, 0xE0, 0xE0, 0xFF}, {0xE0, 0xE0, 0xE0, 0xFF}, {0xE0, 0xE0, 0xE0, 0xFF}, {0xE0, 0xE0, 0xE0, 0xFF}},
             // 按下状态
@@ -299,8 +300,6 @@ unsigned int gui_login()
                 strlen(name.textIn) > 0 && strlen(name.textIn) < USER_LEN &&
                 getThread() == false)
             {
-                gmAdd(&msg, "登陆中...", guiMsgEnum_Warning);
-
                 // 登陆
                 setThread(true);
 
@@ -320,8 +319,6 @@ unsigned int gui_login()
                 strlen(name.textIn) > 0 && strlen(name.textIn) < USER_LEN &&
                 getThread() == false)
             {
-                gmAdd(&msg, "注册中...", guiMsgEnum_Warning);
-
                 // 注册
                 setThread(true);
 
@@ -422,7 +419,7 @@ static void *login(void *arg)
 
     // 获取用户信息
     ret = userGet(USER_CONFIG, name, &Global.SM2user, key, iv);
-    if(ret == false)
+    if (ret == false)
         gmAdd(msg, "未在检测到该用户", guiMsgEnum_Error);
     CHECK(ret == true, "未在检测到该用户");
 
@@ -432,10 +429,18 @@ static void *login(void *arg)
     // 与在服务端登陆
     ret = loginUser(name, &Global.SM2server, &Global.SM2user);
     CHECK(ret == 0, "登陆失败\n");
+    
+    {
+        // test
+        personal p = {0};
+        p.vector = Malloc(500);
+        strcpy(p.info.name, "TUTo");
+        uploadFaceInfo(&p);
+    }
 
     // 成功登陆
-    *quit = 0;
-    *loginRet = LOGIN_SUCCESS;
+    *quit = 0;                 // 设置界面退出
+    *loginRet = LOGIN_SUCCESS; // 设置登陆结果
 
     gmAdd(msg, "登陆成功", guiMsgEnum_Success);
 
@@ -445,6 +450,7 @@ static void *login(void *arg)
 error:
     if (ret == 2)
         gmAdd(msg, "用户不存在", guiMsgEnum_Error);
+
     gmAdd(msg, "登陆失败", guiMsgEnum_Error);
 
     setThread(false);

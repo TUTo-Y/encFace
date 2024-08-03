@@ -72,16 +72,18 @@
 
 #define VERSION "encFace 2.0" // encFace版本
 
-// #define IP_S "171.115.221.106" // 远程服务器地址
-// #define PORT_S 5244            // 远程服务器端口
-#define IP_S "127.0.0.1"      // 远程服务器地址
-#define PORT_S 8080           // 远程服务器端口
+#define IP_S "171.115.221.106" // 远程服务器地址
+#define PORT_S 5244            // 远程服务器端口
+// #define IP_S "127.0.0.1"      // 远程服务器地址
+// #define PORT_S 8080           // 远程服务器端口
 #define IP_F "127.0.0.1"      // facenet服务器地址
 #define PORT_F 8081           // facenet服务器端口
 #define PYTHON_FACE "face.py" // facenet服务器脚本
 
-#define WINDOW_PLAY_DEFAULT_WIDTH 1300 // play窗口默认宽度
-#define WINDOW_PLAY_DEFAULT_HEIGHT 800 // play窗口默认高度
+#define WINDOW_PLAY_DEFAULT_WIDTH 1300                        // play窗口默认宽度
+#define WINDOW_PLAY_DEFAULT_HEIGHT 800                        // play窗口默认高度
+#define WINDOW_EDIT_DEFAULT_WIDTH WINDOW_PLAY_DEFAULT_WIDTH   // edit窗口默认宽度
+#define WINDOW_EDIT_DEFAULT_HEIGHT WINDOW_PLAY_DEFAULT_HEIGHT // edit窗口默认高度
 
 #define WINDOW_LOGIN_DEFAULT_WIDTH 1000 // login窗口默认宽度
 #define WINDOW_LOGIN_DEFAULT_HEIGHT 560 // login窗口默认高度

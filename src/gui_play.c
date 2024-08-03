@@ -1,5 +1,10 @@
 #include "gui_play.h"
 
+static const SDL_Color figureLiveColorFD = {0, 255, 0, 255};    // 人物存在的字体颜色
+static const SDL_Color figureLiveColorBG = {128, 128, 255, 64}; // 人物存在的背景颜色
+static const SDL_Color figureDeadColorFD = {255, 0, 0, 255};    // 人物不存在的字体颜色
+static const SDL_Color figureDeadColorBG = {128, 0, 0, 64};     // 人物不存在的背景颜色
+
 #define GUI_PLAY_BUTTON_RUN_SELECT_TIME 100 // 按钮选中动画时间
 #define GUI_PLAY_BUTTON_RUN_LEAVE_TIME 100  // 按钮离开动画时间
 #define GUI_PLAY_BUTTON_RUN_PRESS_TIME 150  // 按钮按下动画时间
@@ -317,6 +322,15 @@ static void gpEventImage(guiPlay *gp, SDL_Event *event)
     switch (event->type)
     {
     case SDL_MOUSEMOTION: // 移动事件
+
+        // 如果图片被选中
+        if (CHECKFLAG(gp->flag, guiPlayEnum_choice))
+        {
+            if (abs(event->motion.x - gp->choicePos.x) > 10 ||
+                abs(event->motion.y - gp->choicePos.y) > 10)
+                CLEARFLAG(gp->flag, guiPlayEnum_choice); // 清除选中
+        }
+
         // 图片被按下移动
         if (CHECKFLAG(gp->flag, guiPlayEnum_image_enter))
         {
@@ -333,6 +347,30 @@ static void gpEventImage(guiPlay *gp, SDL_Event *event)
             {
                 // 设置图片被按下
                 SETFLAG(gp->flag, guiPlayEnum_image_enter);
+
+                // 如果在人物信息内按下
+                if (getThread() == false)
+                {
+                    list *node = gp->figure->fd;
+                    while (node != gp->figure)
+                    {
+                        personal *p = (personal *)node->data;
+                        if (SDL_PointInFRect(&(SDL_FPoint){(float)event->button.x, (float)event->button.y},
+                                             &(SDL_FRect){.x = gp->imageRect.x + p->rect.x * gp->scale1 * gp->scale2,
+                                                          .y = gp->imageRect.y + p->rect.y * gp->scale1 * gp->scale2,
+                                                          .w = p->rect.w * gp->scale1 * gp->scale2,
+                                                          .h = p->rect.h * gp->scale1 * gp->scale2}))
+                        {
+                            // 设置人物被选中
+                            SETFLAG(gp->flag, guiPlayEnum_choice);
+                            gp->choiceNode = p;
+                            gp->choicePos = (SDL_Point){event->button.x, event->button.y};
+                            break;
+                        }
+
+                        node = node->fd;
+                    }
+                }
             }
         }
         break;
@@ -342,6 +380,13 @@ static void gpEventImage(guiPlay *gp, SDL_Event *event)
         {
             // 清除图片被按下
             CLEARFLAG(gp->flag, guiPlayEnum_image_enter);
+
+            // 图片被选中后弹起
+            if (CHECKFLAG(gp->flag, guiPlayEnum_choice))
+            {
+                CLEARFLAG(gp->flag, guiPlayEnum_choice);     // 清除选中
+                SETFLAG(gp->flag, guiPlayEnum_choice_enter); // 确认选中
+            }
         }
         break;
     case SDL_MOUSEWHEEL:
@@ -370,6 +415,39 @@ static void gpEventImage(guiPlay *gp, SDL_Event *event)
 static void gpRenderImage(guiPlay *gp)
 {
     SDL_RenderCopyF(gp->renderer, gp->imageTexture, NULL, &gp->imageRect);
+
+    // 渲染人物信息
+    if (getThread() == false)
+    {
+        int x, y;
+        SDL_GetMouseState(&x, &y);
+
+        list *node = gp->figure->fd;
+        while (node != gp->figure)
+        {
+            personal *p = (personal *)node->data;
+            // 绘制人物框
+            if (p->flag == HV)
+                SDL_SetRenderDrawColor(gp->renderer, 0, 255, 0, 255);
+            else
+                SDL_SetRenderDrawColor(gp->renderer, 255, 0, 0, 255);
+
+            // 人物框实际位置
+            SDL_FRect rect = {.x = gp->imageRect.x + p->rect.x * gp->scale1 * gp->scale2,
+                              .y = gp->imageRect.y + p->rect.y * gp->scale1 * gp->scale2,
+                              .w = p->rect.w * gp->scale1 * gp->scale2,
+                              .h = p->rect.h * gp->scale1 * gp->scale2};
+            SDL_RenderDrawRectF(gp->renderer, &rect);
+
+            // 绘制人物信息
+            if (SDL_PointInFRect(&(SDL_FPoint){(float)x, (float)y}, &rect))
+            {
+                SDL_RenderCopyF(gp->renderer, p->infoTexture, NULL, &(SDL_FRect){.x = gp->imageRect.x + p->infoRect.x * gp->scale1 * gp->scale2, .y = gp->imageRect.y + p->infoRect.y * gp->scale1 * gp->scale2, .w = p->infoRect.w * gp->scale1 * gp->scale2, .h = p->infoRect.h * gp->scale1 * gp->scale2});
+            }
+
+            node = node->fd;
+        }
+    }
 }
 
 /** \brief 处理等待渲染 */
@@ -415,6 +493,12 @@ static void gpRenderWatt(guiPlay *gp)
             gp->time = SDL_GetTicks();
 
             // 渲染用户数据等等
+            list *node = gp->figure->fd;
+            while (node != gp->figure)
+            {
+                renderUserData((personal *)node->data, gp->renderer);
+                node = node->fd;
+            }
         }
 
         int time = SDL_GetTicks() - gp->time;
@@ -582,6 +666,18 @@ void gui_play()
         // 渲染基础界面
         gpRender(&gp);
 
+        // 检查是否需要进入新的界面
+        if (CHECKFLAG(gp.flag, guiPlayEnum_choice_enter))
+        {
+            CLEARFLAG(gp.flag, guiPlayEnum_choice_enter);
+
+            // 进入编辑界面
+            SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, WINDOW_PLAY_DEFAULT_WIDTH, WINDOW_PLAY_DEFAULT_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
+            SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, surface->pixels, surface->pitch);
+            quit = guiEdit(renderer, surface, &msg, gp.choiceNode);
+            SDL_FreeSurface(surface);
+        }
+
         // 渲染消息
         gmRender(&msg);
 
@@ -595,6 +691,12 @@ void gui_play()
     }
 
     // 释放资源
+    gmDestroy(&msg);
+    freeList(&figure, (void (*)(void *))freePersonal);
+    SDL_DestroyTexture(gp.imageTexture);
+    SDL_DestroyTexture(gp.buttonTextureS);
+    SDL_DestroyTexture(gp.buttonTextureP);
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 }
@@ -613,10 +715,11 @@ void getFaceThread(faceThreadParam *param)
         setThread(false);
         return;
     }
+    gmAdd(msg.msg, "提取人脸特征向量完成", guiMsgEnum_Success);
 
     // 从远程服务器获取人物消息
     list *node = msg.figure->fd;
-    while(node != msg.figure)
+    while (node != msg.figure)
     {
         personal *p = (personal *)node->data;
         if (getFaceInfo(p) == false)
@@ -628,9 +731,7 @@ void getFaceThread(faceThreadParam *param)
         node = node->fd;
     }
 
-
-
-    gmAdd(msg.msg, "正在获取人脸信息成功", guiMsgEnum_Success);
+    gmAdd(msg.msg, "获取人物信息成功", guiMsgEnum_Success);
     setThread(false);
     return;
 }
@@ -638,5 +739,54 @@ void getFaceThread(faceThreadParam *param)
 /** \brief 渲染用户数据 */
 void renderUserData(personal *p, SDL_Renderer *renderer)
 {
+    // 清空原有渲染
+    if (p->infoTexture)
+        SDL_DestroyTexture(p->infoTexture);
 
+    // 人物是否存在则渲染消息
+    if (p->flag == HV)
+    {
+        // 生成渲染数据
+        char msg[0x200] = {0};
+        sprintf(msg, "姓名: %s\n学号: %s\n学院: %s\n专业班级: %s", p->info.name, p->info.id, p->info.college, p->info.major);
+        SDL_Surface *surface = TTF_RenderUTF8_Blended_Wrapped(Global.font, msg, figureLiveColorFD, 600);
+        SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+        // 创建texture
+        p->infoTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, surface->w, surface->h);
+        SDL_SetTextureBlendMode(p->infoTexture, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderTarget(renderer, p->infoTexture);
+        SDL_SetRenderDrawColor(renderer, figureLiveColorBG.r, figureLiveColorBG.g, figureLiveColorBG.b, figureLiveColorBG.a);
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, NULL, NULL);
+        SDL_SetRenderTarget(renderer, NULL);
+
+        p->infoRect = (SDL_FRect){p->rect.x + p->rect.w + 20, p->rect.y, (float)surface->w, (float)surface->h};
+
+        // 释放空间
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+    }
+    // 人物不存在则渲染不存在
+    else
+    {
+        char msg[] = {"没有信息"};
+        SDL_Surface *surface = TTF_RenderUTF8_Blended_Wrapped(Global.font, msg, figureDeadColorFD, 600);
+        SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+        // 创建texture
+        p->infoTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, surface->w, surface->h);
+        SDL_SetTextureBlendMode(p->infoTexture, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderTarget(renderer, p->infoTexture);
+        SDL_SetRenderDrawColor(renderer, figureDeadColorBG.r, figureDeadColorBG.g, figureDeadColorBG.b, figureDeadColorBG.a);
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, NULL, NULL);
+        SDL_SetRenderTarget(renderer, NULL);
+
+        p->infoRect = (SDL_FRect){p->rect.x + p->rect.w + 20, p->rect.y, (float)surface->w, (float)surface->h};
+
+        // 释放空间
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+    }
 }

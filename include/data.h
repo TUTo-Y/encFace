@@ -31,32 +31,6 @@
 #define NU 0 // flag标志 : 空, 表示没有搜索到人物信息
 #define HV 1 // flag标志 : 存在搜索到任务信息
 
-// 全局变量flag标志位
-#define CHECK_FLAG(F) (Global.flag & FLAG(F))   // 检测标识是否为1
-#define SET_FLAG(F) (Global.flag |= FLAG(F))    // 将标识标记为1
-#define CLEAR_FLAG(F) (Global.flag &= ~FLAG(F)) // 将标识标记为0
-enum
-{
-    image_enter,  // 图片是否按下
-    button_enter, // 按钮是否按下
-
-    button_In, // 是否在按钮内
-
-    button_Select,           // 按钮选中动画
-    button_Select_Start,     // 按钮选中动画(初始化状态)
-    button_Not_Select,       // 按钮离开动画
-    button_Not_Select_Start, // 按钮离开动画(初始化状态)
-
-    button_Click,           // 按钮点击动画
-    button_Click_Start,     // 按钮点击动画(初始化状态)
-    button_Not_Click,       // 按钮松开动画
-    button_Not_Click_Start, // 按钮松开动画(初始化状态)
-
-    button_Wait,           // 按钮等待动画
-    button_Wait_Start,     // 按钮等待动画(初始化状态)
-    button_Not_Wait_Start, // 按钮等待结束动画(初始化状态)
-};
-
 // 基础信息结构
 typedef struct _basicMsg basicMsg;
 struct _basicMsg
@@ -64,11 +38,7 @@ struct _basicMsg
     char name[0x20];    // 姓名
     char id[0x20];      // 学号
     char college[0x20]; // 学院
-    char major[0x20];   // 专业
-    char class[0x20];   // 班级
-    char phone[0x20];   // 电话
-    char email[0x20];   // 邮箱
-    char address[0x20]; // 地址
+    char major[0x20];   // 专业班级
 };
 
 // 人物全部信息

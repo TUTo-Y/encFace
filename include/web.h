@@ -18,23 +18,28 @@
 
 typedef size_t MSG_TYPE;               // 消息类型
 #define MSG_TYPE_SIZE sizeof(MSG_TYPE) // 消息类型长度
-#define MSG_CLOSE 0                    // 关闭连接消息
-#define MSG_SUCESS 1                   // 处理成功
-#define MSG_ERROR 2                    // 处理失败
+enum
+{
+    MSG_CLOSE = 0,  // 关闭连接消息
+    MSG_SUCESS = 1, // 处理成功
+    MSG_ERROR = 2,  // 处理失败
 
-#define MSG_GET_FACE_VECTOR 3 // 请求获取人脸特征向量
-#define MSG_GET_FACE_INFO 4   // 请求获取人脸信息
+    MSG_GET_FACE_VECTOR, // 请求获取人脸特征向量
+    MSG_FACE,            // 获取人脸特征向量
+    MSG_FACE_END,        // 获取人脸特征向量结束
 
-#define MSG_FACE 5     // 人脸数据
-#define MSG_FACE_END 6 // 结束
+    MSG_GET_FACE_INFO, // 请求获取人脸信息
 
-#define MSG_REGISTER 7         // 注册请求
-#define MSG_REGISTER_USER_IN 8 // 注册用户存在
-#define MSG_REGISTER_USER_NO 9 // 注册用户不存在
+    MSG_UPLOAD_FACE_INFO, // 请求上传人物信息
 
-#define MSG_LOGIN 10         // 登录请求
-#define MSG_LOGIN_USER_IN 11 // 注册用户存在
-#define MSG_LOGIN_USER_NO 12  // 注册用户不存在
+    MSG_REGISTER,         // 注册请求
+    MSG_REGISTER_USER_IN, // 注册用户存在
+    MSG_REGISTER_USER_NO, // 注册用户不存在
+
+    MSG_LOGIN,         // 登录请求
+    MSG_LOGIN_USER_IN, // 注册用户存在
+    MSG_LOGIN_USER_NO, // 注册用户不存在
+};
 
 /**
  * \brief 建立与远程服务器的连接

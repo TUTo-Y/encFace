@@ -80,6 +80,13 @@ void gtInit(guiText *gt,
             SDL_Renderer *renderer);
 
 /**
+ * \brief 设置文本
+ * \param gt 文本框指针
+ * \return void
+ */
+void gtSetText(guiText *gt, char *text);
+
+/**
  * \brief 重新渲染文本
  * \param gt 文本框指针
  * \return void

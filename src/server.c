@@ -28,6 +28,67 @@ static SM2_KEY ukey;          // 用户sm2公钥
 static ZUC_STATE zstate;      // zuc状态
 static char user[0x20] = {0}; // 用户ID
 
+static int update(int client_sockfd)
+{
+    int ret;
+    ZUC_STATE state;
+    uint8_t key[ZUC_KEY_SIZE] = {0};
+    uint8_t iv[ZUC_IV_SIZE] = {0};
+    uint8_t textCipher[SM2_MAX_CIPHERTEXT_SIZE] = {0}; // sm2密文
+    size_t textCipherSize = 0;                         // sm2密文大小
+    uint8_t textPlaint[SM2_MAX_PLAINTEXT_SIZE] = {0};  // sm2明文
+    size_t textPlaintSize = 0;                         // sm2明文大小
+
+    // 接受人物特征向量大小
+    size_t size;
+    ret = recv(client_sockfd, &size, sizeof(size), MSG_WAITALL);
+    CHECK(ret != -1, "接收人物特征向量大小失败\n");
+
+    // 接受人物特征向量
+    char *data = malloc(size);
+    ret = recv(client_sockfd, data, size, MSG_WAITALL);
+    CHECK(ret != -1, "接收人物特征向量失败\n");
+    free(data);
+
+    // 接受sm2加密后的ZUC密钥大小
+    ret = recv(client_sockfd, &textCipherSize, sizeof(textCipherSize), MSG_WAITALL);
+    CHECK(ret != -1, "接收sm2加密后的ZUC密钥大小失败\n");
+
+    // 接受sm2加密后的ZUC密钥
+    ret = recv(client_sockfd, textCipher, textCipherSize, MSG_WAITALL);
+    CHECK(ret != -1, "接收sm2加密后的ZUC密钥失败\n");
+
+    // 解密ZUC密钥
+    sm2_decrypt(&skey, textCipher, textCipherSize, textPlaint, &textPlaintSize);
+    memcpy(key, textPlaint, 16);
+    memcpy(iv, textPlaint + 16, 16);
+    zuc_init(&state, key, iv);
+
+    // 接受人物信息
+    basicMsg info = {0};
+    ret = recv(client_sockfd, &info, sizeof(info), MSG_WAITALL);
+    CHECK(ret != -1, "接收人物信息失败\n");
+
+    // 解密
+    zucEnc((byte *)&info, (byte *)&info, sizeof(info), &state);
+    zucEnc((byte *)&info, (byte *)&info, sizeof(info), &zstate);
+
+    DEBUG("服务器接受到上传数据:\n");
+    DEBUG("姓名 : %s\n", info.name);
+    DEBUG("学号: : %s\n", info.id);
+    DEBUG("学院: : %s\n", info.college);
+    DEBUG("专业班级: : %s\n", info.major);
+
+    MSG_TYPE msg = MSG_SUCESS;
+    ret = send(client_sockfd, &msg, MSG_TYPE_SIZE, 0);
+    CHECK(ret != -1, "发送成功消息失败\n");
+
+    return 0;
+
+error:
+    return -1;
+}
+
 // 人脸特征向量对应的数据 成功0, 失败-1
 static int face_msg(int client_sockfd)
 {
@@ -49,12 +110,10 @@ static int face_msg(int client_sockfd)
     // 接收人脸特征向量长度
     size_t size;
     ret = recv(client_sockfd, &size, sizeof(size), MSG_WAITALL);
-    printf("接受到的数据长度为：%d\n", size);
 
     char *data = malloc(size);
     ret = recv(client_sockfd, data, size, MSG_WAITALL);
     free(data);
-
 
     size_t flag = rand() % 2;
     // 发送人物是否存在标识
@@ -84,7 +143,7 @@ static int face_msg(int client_sockfd)
         // 发送ZUC密钥
         ret = send(client_sockfd, textCipher, textCipherSize, 0);
         CHECK(ret != -1, "发送ZUC密钥失败\n");
-        
+
         basicMsg info = {0};
         switch (rand() % 10)
         {
@@ -119,7 +178,9 @@ static int face_msg(int client_sockfd)
             strcpy(info.name, "马十二");
             break;
         }
-
+        strcpy(info.id, "23261075");
+        strcpy(info.major, "信息安全2303");
+        strcpy(info.college, "网安");
         // 加密信息
         zucEnc((byte *)&info, (byte *)&info, sizeof(info), &zstate);
         zucEnc((byte *)&info, (byte *)&info, sizeof(info), &state);
@@ -168,6 +229,7 @@ static int login(int client_sockfd)
         ret = send(client_sockfd, &msg, MSG_TYPE_SIZE, 0);
         goto error;
     }
+    DEBUG("登陆ID: %s\n", ID);
 
     // 发送存在/不存在消息
     msg = MSG_LOGIN_USER_IN;
@@ -245,7 +307,7 @@ static int reg(int client_sockfd)
     // 检测用户是否存在
     textPlaint[textPlaintSize] = '\0';
     strcpy(ID, textPlaint);
-    DEBUG("注册接收到ID: %s\n", textPlaint);
+    DEBUG("注册ID: %s\n", textPlaint);
     if (!strcmp(ID, user))
     {
         // 发送用户已存在消息
@@ -389,6 +451,9 @@ error:
                 break;
             case MSG_GET_FACE_INFO:
                 ret = face_msg(client_sockfd);
+                break;
+            case MSG_UPLOAD_FACE_INFO:
+                ret = update(client_sockfd);
                 break;
             }
         }
