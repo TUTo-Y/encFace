@@ -1,54 +1,77 @@
 #include "draw.h"
 
-void drawCircle(SDL_Renderer *renderer, float centerX, float centerY, float radius, SDL_Color color)
+/**
+ * \brief 生成一个圆的texture
+ * \param r 半径
+ * \param color 颜色
+ * \param renderer 渲染器
+ * \param SR 超级分辨率
+ */
+SDL_Texture *drawCircle(int r, SDL_Color color, SDL_Renderer *renderer, bool SR)
 {
-    int *index = NULL;
-    SDL_Vertex *vertex = NULL;
-    int vertexNum = (int)(2.0f * PI * radius); // 顶点数
+    if (SR)
+        r *= 2;
+    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, r * 2, r * 2, 32, SDL_PIXELFORMAT_RGBA32);
+    SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
 
-    // 检查Renderer是否存在
-    if (!renderer)
-        return;
-
-    vertex = (SDL_Vertex *)malloc(sizeof(SDL_Vertex) * vertexNum);
-    index = (int *)malloc(sizeof(int) * (vertexNum - 2) * 3);
-
-    // 计算所有顶点
-    for (int i = 0; i < vertexNum; i++)
+    for (int i = 0; i < surface->w; i++)
     {
-        vertex[i].color = color;
-        vertex[i].position.x = centerX + radius * cosf(2.0f * PI * (float)i / (float)vertexNum); // i * PI / 180.0f
-        vertex[i].position.y = centerY + radius * sinf(2.0f * PI * (float)i / (float)vertexNum); // i * PI / 180.0f
-    }
-    for (int i = 0; i < vertexNum - 2; i++)
-    {
-        index[i * 3] = 0;
-        index[i * 3 + 1] = i + 1;
-        index[i * 3 + 2] = i + 2;
+        for (int j = 0; j < surface->h; j++)
+        {
+            int dx = i - r;
+            int dy = j - r;
+            if (dx * dx + dy * dy <= r * r)
+            {
+                ((Uint32 *)surface->pixels)[j * surface->w + i] = SDL_MapRGBA(surface->format, color.r, color.g, color.b, color.a);
+            }
+            else
+            {
+                ((Uint32 *)surface->pixels)[j * surface->w + i] = 0x00000000;
+            }
+        }
     }
 
-    SDL_RenderGeometry(renderer, NULL, vertex, vertexNum, index, (vertexNum - 2) * 3);
-
-    free(vertex);
-    free(index);
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    SDL_FreeSurface(surface);
+    return texture;
 }
 
-void drawCircleN(SDL_Renderer *renderer, float centerX, float centerY, float R, float r, SDL_Color *color, float O, int n)
+/**
+ * \brief 绘制8个圆
+ * \param points 圆心
+ * \param R 大圆半径
+ * \param r 小圆半径
+ * \param O 旋转角度
+ * \param a 圆的透明度
+ * \param circle 圆的纹理
+ * \param renderer 渲染器
+ */
+void drawCircle8(SDL_FPoint *points, float R, float r, float O, int a[8], SDL_Texture *circle, SDL_Renderer *renderer)
 {
-    if (!renderer || !color)
-        return;
-    for (int o = 0; o < n; o++)
-        drawCircle(renderer,
-                   centerX + R * cosf(O + 2.0f * (float)o * PI / (float)n),
-                   centerY + R * sinf(O + 2.0f * (float)o * PI / (float)n),
-                   r, color[o]);
+    Uint8 Alpha;
+
+    // 保存原来的透明度
+    SDL_GetTextureAlphaMod(circle, &Alpha);
+    for (int o = 0; o < 8; o++)
+    {
+        // 设置透明度
+        SDL_SetTextureAlphaMod(circle, a[o]);
+
+        // 绘制圆
+        float x = points->x + R * cosf(O + 2.0f * (float)o * PI / (float)8.0f);
+        float y = points->y + R * sinf(O + 2.0f * (float)o * PI / (float)8.0f);
+        SDL_Rect dstrect = {x - r, y - r, r * 2, r * 2};
+        SDL_RenderCopy(renderer, circle, NULL, &dstrect);
+    }
+
+    // 恢复透明度
+    SDL_SetTextureAlphaMod(circle, Alpha);
 }
 
-bool checkPointInCircle(SDL_FPoint point, float x, float y, float r)
+int checkPointInCircle(SDL_FPoint point, float x, float y, float r)
 {
-    if ((point.x - x) * (point.x - x) + (point.y - y) * (point.y - y) <= r * r)
-        return true;
-    return false;
+    return (point.x - x) * (point.x - x) + (point.y - y) * (point.y - y) <= r * r;
 }
 
 void resizeImage(const SDL_Rect *total, SDL_FRect *dRect, int w, int h)
@@ -96,8 +119,8 @@ void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SD
     if (!(texture || (textureW && textureH)) || !dstrect || !ebo)
         return;
 
-    if(!color)
-        color = (SDL_Color*)&colorDefault;
+    if (!color)
+        color = (SDL_Color *)&colorDefault;
 
     // 获取纹理宽高
     if (texture)
@@ -210,4 +233,94 @@ void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SD
     *(indexP++) = tmp[5];
     *(indexP++) = tmp[6];
     *(indexP++) = tmp[11];
+}
+
+/**
+ * \brief 渲染一个矩形
+ * \param w 矩形的宽度
+ * \param h 矩形的高度
+ * \param color 矩形的颜色[左上开始，顺时针]
+ * \param renderer 渲染器
+ * \param texture 纹理(可选)
+ * \return 返回渲染的纹理
+ */
+SDL_Texture *drawRect(int w, int h, SDL_Color color[4], SDL_Renderer *renderer, SDL_Texture *texture)
+{
+    // 创建目标纹理
+    SDL_Texture *Texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, w, h);
+    SDL_SetTextureBlendMode(Texture, SDL_BLENDMODE_BLEND);
+
+    // 渲染颜色及其纹理
+    SDL_SetRenderTarget(renderer, Texture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_Vertex vertex[4] = {
+        {.color = color[0], .position = {0, 0}, .tex_coord = {0.0f, 0.0f}},
+        {.color = color[1], .position = {w, 0}, .tex_coord = {1.0f, 0.0f}},
+        {.color = color[2], .position = {w, h}, .tex_coord = {1.0f, 1.0f}},
+        {.color = color[3], .position = {0, h}, .tex_coord = {0.0f, 1.0f}},
+    };
+    int index[6] = {0, 1, 2, 0, 2, 3};
+    SDL_RenderGeometry(renderer, texture, vertex, 4, index, 6);
+    SDL_SetRenderTarget(renderer, NULL);
+
+    return Texture;
+}
+
+/**
+ * \brief 渲染一个圆角矩形
+ * \param w 矩形的宽度
+ * \param h 矩形的高度
+ * \param color 矩形的颜色[左上开始，顺时针]
+ * \param radius 矩形的圆角半径, 百分比
+ * \param renderer 渲染器
+ * \param texture 纹理(可选)
+ * \return 返回渲染的纹理
+ */
+SDL_Texture *drawRoundRect(int w, int h, SDL_Color color[4], float radius, SDL_Renderer *renderer, SDL_Texture *texture)
+{
+    // 创建目标纹理
+    SDL_Texture *TextureColor = drawRect(w, h, color, renderer, texture);
+
+    // 渲染圆角
+    SDL_SetRenderTarget(renderer, TextureColor);
+    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
+    SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, surface->pixels, surface->pitch);
+
+    // 计算圆角半径
+    int r = (float)MIN(w, h) * radius;
+    int r_squared = r * r;
+
+    // 优化后的圆角处理
+    Uint32 *pixels = (Uint32 *)surface->pixels;
+    for (int y = 0; y < r; y++)
+    {
+        for (int x = 0; x < r; x++)
+        {
+            int dx = x - r;
+            int dy = y - r;
+            if (dx * dx + dy * dy > r_squared)
+            {
+                // 左上角
+                pixels[y * w + x] = 0x00000000;
+                // 右上角
+                pixels[y * w + (w - 1 - x)] = 0x00000000;
+                // 左下角
+                pixels[(h - 1 - y) * w + x] = 0x00000000;
+                // 右下角
+                pixels[(h - 1 - y) * w + (w - 1 - x)] = 0x00000000;
+            }
+        }
+    }
+
+    // 计算出最终纹理
+    SDL_Texture *Texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_SetTextureBlendMode(Texture, SDL_BLENDMODE_BLEND);
+
+    // 清理资源
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(TextureColor);
+    SDL_SetRenderTarget(renderer, NULL);
+
+    return Texture;
 }

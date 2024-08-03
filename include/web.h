@@ -59,31 +59,49 @@ void closeServer();
 void closeFaceNet();
 
 /**
- * \brief 从图片中提取特征向量
- * \param image 图片
- * \param head 链表头指针
+ * \brief 从facenet服务器获取人脸特征向量
+ * \param file 图片
+ * \param l 人物列表
  * \return 是否成功提取特征向量
  */
-bool getFaceVector(const char *file, list **head);
+bool getFaceVector(const char *file, list *l);
 
 /**
- * \brief 通过人脸特征向量获取人脸信息
- * \param face 人脸数据链表
+ * \brief 从远程服务器获取人物信息
+ * \param p 人物信息
  * \return 是否成功
  */
-bool getFaceInfo(list *face);
+bool getFaceInfo(personal *p);
+
+/**
+ * \brief 上传人物数据
+ * \param p 人物信息
+ * \return 是否成功
+ */
+bool uploadFaceInfo(const personal *p);
 
 /**
  * \brief 注册
  * \param ID 用户ID
  * \param skey 服务器sm2公钥
  * \param ukey 保存用户sm2密钥对
+ * \return 是否成功
+ * \retval 0 成功
+ * \retval 2 其他错误
+ * \retval 1 服务器端已有用户数据
  */
-bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *ukey);
+int registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *ukey);
 
 /**
  * \brief 登录
+ * \param ID 用户ID
+ * \param skey 服务器sm2公钥
+ * \param ukey 用户sm2密钥对
+ * \return 是否成功
+ * \retval 0 成功
+ * \retval 2 服务器端无用户数据
+ * \retval 1 其他错误
  */
-bool loginUser(const char *ID, const SM2_KEY *skey, const SM2_KEY *ukey);
+int loginUser(const char *ID, const SM2_KEY *skey, const SM2_KEY *ukey);
 
 #endif

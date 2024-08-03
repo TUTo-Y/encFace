@@ -13,12 +13,19 @@ public_key_file = "BGV_public_key"
 
 MSG_TYPE_SIZE       = 8
 
-MSG_CLOSE           = 0
-MSG_SUCESS          = 1
-MSG_GET_FACE_VECTOR = 2
-MSG_GET_FACE_INFO   = 3
-MSG_FACE            = 4
-MSG_FACE_END        = 5
+MSG_CLOSE = 0
+MSG_SUCESS = 1
+MSG_ERROR = 2
+MSG_GET_FACE_VECTOR = 3
+MSG_GET_FACE_INFO = 4
+MSG_FACE = 5
+MSG_FACE_END = 6
+MSG_REGISTER = 7
+MSG_REGISTER_USER_IN = 8
+MSG_REGISTER_USER_NO = 9
+MSG_LOGIN = 10
+MSG_LOGIN_USER_IN = 11
+MSG_LOGIN_USER_NO = 12
 
 def read(s, mtcnn, resnet, encryptor, batch_encoder):
     # 接受文件名的长度
@@ -107,8 +114,7 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
     if os.path.exists("tmp\\tmp"):
         os.remove("tmp\\tmp")
 
-def main():
-    
+def main():    
     # 创建一个MTCNN对象，用于人脸检测
     mtcnn = MTCNN()
     

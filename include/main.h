@@ -13,25 +13,14 @@
 #include <SDL2/SDL_syswm.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
-#include <gtk-3.0/gtk/gtk.h>
 
+#include "th.h"
 #include "config.h"
 #include "data.h"
-#include "gui_login.h"
-#include "gui_play.h"
 #include "enc.h"
 #include "web.h"
 #include "draw.h"
-
-/**
- * \brief 选择图片
- */
-bool selectImageFile(char *path, size_t size);
-
-// 检查线程是否存在
-bool getThread();
-
-// 设置线程状态
-void setThread(bool status);
+#include "gui_play.h"
+#include "gui_login.h"
 
 #endif // _MAIN_H

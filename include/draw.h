@@ -9,7 +9,8 @@
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 
-#include "data.h"
+#include "config.h"
+#include "data_base.h"
 
 #define PI 3.1415926f
 #ifndef MAX
@@ -34,26 +35,25 @@ struct _ebo
 #define drawFromEBO(renderer, texture, ebo) SDL_RenderGeometry(renderer, texture, (SDL_Vertex *)((ebo).vertex->data), (ebo).vertex->size / sizeof(SDL_Vertex), (int *)((ebo).index->data), (ebo).index->size / sizeof(int));
 
 /**
- * \brief 绘制抗锯齿圆
- * \param renderer 渲染器
- * \param centerX 圆心x
- * \param centerY 圆心y
- * \param radius 半径
+ * \brief 生成一个圆的texture
+ * \param r 半径
  * \param color 颜色
+ * \param renderer 渲染器
+ * \param SR 超级分辨率
  */
-void drawCircle(SDL_Renderer *renderer, float centerX, float centerY, float radius, SDL_Color color);
+SDL_Texture *drawCircle(int r, SDL_Color color, SDL_Renderer *renderer, bool SR);
 
 /**
- * \brief 绘制n个对称小球
- * \param centerX 大圆心x
- * \param centerY 大圆心y
- * \param R 大圆的半径
- * \param r 小圆的半径
- * \param color 颜色指针
- * \param O 小球的初始化旋转角度
- * \param n 小球个数
+ * \brief 绘制8个圆
+ * \param points 圆心
+ * \param R 大圆半径
+ * \param r 小圆半径
+ * \param O 旋转角度
+ * \param a 圆的透明度
+ * \param circle 圆的纹理
+ * \param renderer 渲染器
  */
-void drawCircleN(SDL_Renderer *renderer, float centerX, float centerY, float R, float r, SDL_Color *color, float O, int n);
+void drawCircle8(SDL_FPoint *points, float R, float r, float O, int a[8], SDL_Texture *circle, SDL_Renderer *renderer);
 
 /**
  * \brief 检测点位置是否在圆上
@@ -61,9 +61,9 @@ void drawCircleN(SDL_Renderer *renderer, float centerX, float centerY, float R, 
  * \param x 圆的x
  * \param y 圆的y
  * \param r 圆的z
- * \return 是否在圆形区域内
+ * \return 0不在圆上
  */
-bool checkPointInCircle(SDL_FPoint point, float x, float y, float r);
+int checkPointInCircle(SDL_FPoint point, float x, float y, float r);
 
 /**
  * \brief 将图片缩放到指定区间
@@ -93,5 +93,29 @@ void freeEBO(ebo *ebo);
  * \warning radius会根据最小边长自动调整
  */
 void getRoundedBorder(SDL_Texture *texture, int textureW, int textureH, const SDL_FRect *dstrect, float radius, ebo *ebo, SDL_Color *color);
+
+
+/**
+ * \brief 渲染一个矩形
+ * \param w 矩形的宽度
+ * \param h 矩形的高度
+ * \param color 矩形的颜色[左上开始，顺时针]
+ * \param renderer 渲染器
+ * \param texture 纹理(可选)
+ * \return 返回渲染的纹理
+ */
+SDL_Texture *drawRect(int w, int h, SDL_Color color[4], SDL_Renderer *renderer, SDL_Texture *texture);
+
+/**
+ * \brief 渲染一个圆角矩形
+ * \param w 矩形的宽度
+ * \param h 矩形的高度
+ * \param color 矩形的颜色[左上开始，顺时针]
+ * \param radius 矩形的圆角半径, 百分比
+ * \param renderer 渲染器
+ * \param texture 纹理(可选)
+ * \return 返回渲染的纹理
+ */
+SDL_Texture *drawRoundRect(int w, int h, SDL_Color color[4], float radius, SDL_Renderer *renderer, SDL_Texture *texture);
 
 #endif // _DRAW_H

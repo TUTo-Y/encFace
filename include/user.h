@@ -6,13 +6,14 @@
 #include <gmssl/zuc.h>
 #include <gmssl/sm2.h>
 
+#include "config.h"
 
-/**
- * \brief 检查用户是否存在
- * \param filename 用户文件名
- * \retturn
-*/
-bool userCheckIn(const char *filename);
+// /**
+//  * \brief 检查用户是否存在
+//  * \param filename 用户文件名
+//  * \retturn
+// */
+// bool userCheckIn(const char *filename);
 
 /**
  * \brief 向用户文件添加用户

@@ -133,26 +133,19 @@ void closeFaceNet()
 }
 
 /**
- * \brief 从图片中提取特征向量
- * \param image 图片
- * \param head 链表头指针
+ * \brief 从facenet服务器获取人脸特征向量
+ * \param file 图片
+ * \param l 人物列表
  * \return 是否成功提取特征向量
  */
-bool getFaceVector(const char *file, list **head)
+bool getFaceVector(const char *file, list *l)
 {
     int ret = 0;
-    vector vec = {0};
     size_t size = 0;
-    MSG_TYPE msgs = 0;
-
-    // 检查参数
-    CHECK(file && head, "文件名为空\n");
-
-    // 初始化
-    listFree(head, (void (*)(void *))freeVector);
+    personal p = {0};
 
     // 向facenet服务器发送请求(size_t)
-    msgs = MSG_GET_FACE_VECTOR;
+    MSG_TYPE msgs = MSG_GET_FACE_VECTOR;
     ret = send(Global.sock_f, (char *)&msgs, MSG_TYPE_SIZE, 0);
     CHECK(ret != INADDR_NONE, "向faceNet服务器发送请求错误: %s\n", strerror(errno));
 
@@ -179,119 +172,114 @@ bool getFaceVector(const char *file, list **head)
 
         DEBUG("正在从faceNet服务器获取第%d个人脸特征向量\n", ++count);
 
-        memset(&vec, 0, sizeof(vec));
+        memset(&p, 0, sizeof(p));
 
         // 人物框位置(SDL_FRect)
-        ret = recv(Global.sock_f, (char *)&vec.rect, sizeof(vec.rect), MSG_WAITALL);
+        ret = recv(Global.sock_f, (char *)&p.rect, sizeof(p.rect), MSG_WAITALL);
         CHECK(ret != INADDR_NONE, "从faceNet服务器接收人物框位置错误: %s\n", strerror(errno));
-        vec.rect.w -= vec.rect.x;
-        vec.rect.h -= vec.rect.y;
+        p.rect.w -= p.rect.x;
+        p.rect.h -= p.rect.y;
 
         // 返回特征向量大小(size_t)
         ret = recv(Global.sock_f, (char *)&size, sizeof(size), MSG_WAITALL);
         CHECK(ret != INADDR_NONE, "从faceNet服务器接收特征向量大小错误: %s\n", strerror(errno));
 
         // 创建特征向量空间
-        vec.v = (data *)Malloc(size);
-        CHECK(vec.v, "特征向量空间内存分配错误\n");
+        p.vector = (data *)Malloc(size);
 
         // 返回特征向量数据(byte*)
-        ret = recv(Global.sock_f, (char *)vec.v->data, size, MSG_WAITALL);
-        CHECK(ret != INADDR_NONE, "从faceNet服务器接收特征向量数据错误: %s\n", strerror(errno));
+        recv(Global.sock_f, (char *)p.vector->data, size, MSG_WAITALL);
 
         // 添加到链表
-        ret = addData(head, &vec, sizeof(vec), true);
-        CHECK(ret == true, "添加数据错误\n");
+        addNodeToListEnd(l, addDataToNode(createNode(), &p, sizeof(p), true));
     }
-
     return true;
+    
 error:
-    listFree(head, (void (*)(void *))freeVector);
     return false;
 }
 
 /**
- * \brief 通过人脸特征向量获取人脸信息
- * \param face 人脸数据链表
+ * \brief 从远程服务器获取人物信息
+ * \param p 人物信息
  * \return 是否成功
  */
-bool getFaceInfo(list *face)
+bool getFaceInfo(personal *p)
 {
     int ret;
-    size_t count = 0;
-    MSG_TYPE msgs = 0;
+    uint8_t key[ZUC_KEY_SIZE] = {0};
+    uint8_t iv[ZUC_IV_SIZE] = {0};
+    ZUC_STATE state;
 
-    // 向远程服务器发送请求(size_t)
-    msgs = MSG_GET_FACE_INFO;
+    uint8_t textCipher[SM2_MAX_CIPHERTEXT_SIZE] = {0}; // sm2密文
+    size_t textCipherSize = 0;                         // sm2密文大小
+    uint8_t textPlaint[SM2_MAX_PLAINTEXT_SIZE] = {0};  // sm2明文
+    size_t textPlaintSize = 0;                         // sm2明文大小
+
+    // check
+    if (p == NULL || p->vector == NULL)
+        goto error;
+
+    // 向服务器发送请求识别
+    MSG_TYPE msgs = MSG_GET_FACE_INFO;
     ret = send(Global.sock_s, (char *)&msgs, MSG_TYPE_SIZE, 0);
     CHECK(ret != INADDR_NONE, "向远程服务器发送查找请求错误: %s\n", strerror(errno));
 
-    // 发送需要验证的人脸总数量(size_t)
-    count = listLen(face);
-    ret = send(Global.sock_s, (char *)&count, sizeof(size_t), 0);
-    CHECK(ret != INADDR_NONE, "向远程服务器发送人脸数量错误: %s\n", strerror(errno));
+    // 发送特征向量大小(size_t)
+    send(Global.sock_s, (char *)&p->vector->size, sizeof(size_t), 0);
 
-    // 发送数据
-    DEB(count = 0);
-    list *node = face;
-    while (node)
-    {
-        DEBUG("正在向远程服务器发送第%d个人脸特征向量\n", ++count);
+    // 发送特征向量(char*)
+    send(Global.sock_s, (char *)p->vector->data, p->vector->size, 0);
 
-        // 发送BGV加密后的长度
-        ret = send(Global.sock_s, (char *)&(((vector *)node->data)->v->size), sizeof(size_t), 0);
-        CHECK(ret != INADDR_NONE, "在向远程服务器发送第%d个人脸特征向量时, 发送BGV加密后的长度错误: %s\n", count, strerror(errno));
+    // 接收服务器回馈(是否检测到人物存在)
+    recv(Global.sock_s, (char *)&p->flag, sizeof(p->flag), MSG_WAITALL);
 
-        // 发送BGV加密后的数据
-        ret = send(Global.sock_s, (char *)(((vector *)node->data)->v->data), ((vector *)node->data)->v->size, 0);
-        CHECK(ret != INADDR_NONE, "在向远程服务器发送第%d个人脸特征向量时, 发送BGV加密后的数据错误: %s\n", count, strerror(errno));
+    // 如果人物不存在, 则返回
+    if (p->flag == NU)
+        return true;
 
-        node = node->next;
-    }
+    // 接受被sm2加密后的ZUC密钥长度(size_t)
+    recv(Global.sock_s, (char *)&textCipherSize, sizeof(textCipherSize), MSG_WAITALL);
+
+    // 接受被sm2加密后的ZUC密钥(char*)
+    recv(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
+
+    // 解密ZUC密钥
+    sm2_decrypt(&Global.SM2user, textCipher, textCipherSize, textPlaint, &textPlaintSize);
+    memcpy(key, textPlaint, ZUC_KEY_SIZE);
+    memcpy(iv, textPlaint + ZUC_KEY_SIZE, ZUC_IV_SIZE);
 
     // 生成ZUC密钥流
-    size_t k_n = TO32(sizeof(msg)) / sizeof(ZUC_UINT32);
-    ZUC_UINT32 *k = malloc(k_n * sizeof(ZUC_UINT32));
-    zuc_generate_keystream(&Global.ZUCstate, k_n, k);
+    zuc_init(&state, key, iv);
 
-    // 接收服务器回馈
-    DEB(count = 0);
-    node = face;
-    while (node)
-    {
-        // 接收服务器回馈人物存在标志
-        DEBUG("正在接收第%d个人脸数据\n", ++count);
-        ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->flag), sizeof(int), MSG_WAITALL);
-        CHECK(ret != INADDR_NONE, "在从远程服务器接收第%d个人脸数据时, 接收服务器回馈flag错误: %s\n", count, strerror(errno));
+    // 接受服务端传送来的人物数据(char*)
+    recv(Global.sock_s, (char *)&p->info, sizeof(p->info), MSG_WAITALL);
 
-        // 如果人物存在, 则接收人物信息
-        if (((vector *)node->data)->flag == HV)
-        {
-            // 加密数据
-            ret = recv(Global.sock_s, (char *)&(((vector *)node->data)->info), sizeof(msg), MSG_WAITALL);
-            CHECK(ret != INADDR_NONE, "在从远程服务器接收第%d个人脸数据时, 接收服务器回馈msg错误: %s\n", count, strerror(errno));
+    // 解密人物数据
+    zucEnc((byte *)&p->info, (byte *)&p->info, sizeof(p->info), &state);
+    zucEnc((byte *)&p->info, (byte *)&p->info, sizeof(p->info), &Global.ZUCstate);
 
-            // 对数据进行解密
-            for (int i = 0; i < k_n; i++)
-                ((ZUC_UINT32 *)&(((vector *)node->data)->info))[i] ^= k[i];
-        }
+    DEBUG("姓名: %s\n", p->info.name);
 
-        node = node->next;
-    }
-
-    // 释放资源
-    free(k);
     return true;
 error:
-    // 释放资源
-    free(k);
     return false;
+}
+
+/**
+ * \brief 上传人物数据
+ * \param p 人物信息
+ * \return 是否成功
+ */
+bool uploadFaceInfo(const personal *p)
+{
+    
 }
 
 /**
  * \brief 注册
  */
-bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *ukey)
+int registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *ukey)
 {
     int ret;
     MSG_TYPE msgs;
@@ -335,11 +323,6 @@ bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *ukey)
 
     // 获取sm2公钥的pem数据
     sm2_public_key_info_to_pem_data(ukey, &pub_pem);
-
-    {
-
-        DEBUG("pem:%s\n", pub_pem->data);
-    }
 
     // 加密公钥
     ret = sm2_encrypt(skey, pub_pem->data, pub_pem->size, textCipher, &textCipherSize);
@@ -389,17 +372,22 @@ bool registerUser(const char *ID, const SM2_KEY *skey, SM2_KEY *ukey)
     CHECK(msgs == MSG_SUCESS, "注册失败\n");
 
     Free(pub_pem);
-    return true;
+    return 0;
 
 error:
     Free(pub_pem);
-    return false;
+
+    // 用户存在错误
+    if (MSG_REGISTER_USER_IN == msgs)
+        return 2;
+    // 其他错误
+    return 1;
 }
 
 /**
  * \brief 登录
  */
-bool loginUser(const char *ID, const SM2_KEY *skey, const SM2_KEY *ukey)
+int loginUser(const char *ID, const SM2_KEY *skey, const SM2_KEY *ukey)
 {
     int ret;
     MSG_TYPE msgs;
@@ -439,16 +427,6 @@ bool loginUser(const char *ID, const SM2_KEY *skey, const SM2_KEY *ukey)
     ret = recv(Global.sock_s, (char *)textCipher, textCipherSize, MSG_WAITALL);
     CHECK(ret == textCipherSize, "从远程服务器接收签名错误: %s\n", strerror(errno));
 
-    {
-        data *pub_pem = NULL;
-        // 获取sm2公钥的pem数据
-        sm2_public_key_info_to_pem_data(ukey, &pub_pem);
-
-        DEBUG("pem:%s\n", pub_pem->data);
-
-        Free(pub_pem);
-    }
-
     // 解密签名
     ret = sm2_decrypt(ukey, textCipher, textCipherSize, textPlaint, &textPlaintSize);
     CHECK(ret == 1, "解密签名错误\n");
@@ -472,7 +450,10 @@ bool loginUser(const char *ID, const SM2_KEY *skey, const SM2_KEY *ukey)
     // 检查是否登陆成功
     CHECK(msgs == MSG_SUCESS, "登陆失败\n");
 
-    return true;
+    return 0;
 error:
-    return false;
+    // 用户不存在错误
+    if (MSG_LOGIN_USER_NO == msgs)
+        return 2;
+    return 1;
 }

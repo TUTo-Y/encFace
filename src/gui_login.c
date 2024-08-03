@@ -1,9 +1,9 @@
 #include "gui_login.h"
 
 // 登陆
-void *login(void *arg);
+static void *login(void *arg);
 // 注册
-void *reg(void *arg);
+static void *reg(void *arg);
 
 /**
  * \brief 扰动函数
@@ -116,180 +116,137 @@ unsigned int gui_login()
 
     unsigned int loginRet = LOGIN_ERROR; // 登陆结果
 
-    Uint64 frameStart = 0, frameTime = 0, waveTime = 0, waveCount = 0; // 控制帧率
+    Uint64 frameStart = 0, frameTime = 0; // 控制帧率
 
     SDL_FPoint mouse = {0.0f, 0.0f}; // 鼠标位置
 
-    // 创建窗口
+    /* 创建窗口和渲染器 */
     SDL_Window *window = SDL_CreateWindow("ecnFace - login", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, SDL_WINDOW_SHOWN);
-    CHECK(window != NULL, "创建窗口失败 : %s\n", SDL_GetError());
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    // 创建渲染器
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    CHECK(renderer != NULL, "创建渲染器失败 : %s\n", SDL_GetError());
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-    // 读取背景图片并转换图片格式
+    /* 加载背景图片和初始化动态水波纹 */
+    Uint64 waveTime = 0, waveCount = 0;
     SDL_Surface *tmp = IMG_Load(LOGIN_IMAGE);
-    if (!tmp)
+    if (!tmp) // 若图片不存在
         tmp = SDL_CreateRGBSurfaceWithFormat(0, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
     SDL_Surface *surface = SDL_ConvertSurfaceFormat(tmp, SDL_PIXELFORMAT_RGBA32, 0);
     SDL_FreeSurface(tmp);
     CHECK(surface != NULL, "转换图片格式失败 : %s\n", SDL_GetError());
-
-    // 原图像数据
+    // 创建两个相同的表面
     SDL_Surface *surface_src = SDL_CreateRGBSurfaceWithFormat(0, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
-    SDL_BlitScaled(surface, NULL, surface_src, NULL);
-
-    // 新图像数据
     SDL_Surface *surface_tar = SDL_CreateRGBSurfaceWithFormat(0, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
+    SDL_BlitScaled(surface, NULL, surface_src, NULL);
     SDL_BlitSurface(surface, NULL, surface_tar, NULL);
-
     // 波幅数组
     SDL_Color *color_src = surface_src->pixels;                                                                                    // 原图片片内存指针
     SDL_Color *color_tar = surface_tar->pixels;                                                                                    // 处理后显示的位图内存指针
     short *buf = malloc((WINDOW_LOGIN_DEFAULT_HEIGHT * WINDOW_LOGIN_DEFAULT_WIDTH + WINDOW_LOGIN_DEFAULT_WIDTH) * sizeof(short));  // 当前波幅
     short *buf2 = malloc((WINDOW_LOGIN_DEFAULT_HEIGHT * WINDOW_LOGIN_DEFAULT_WIDTH + WINDOW_LOGIN_DEFAULT_WIDTH) * sizeof(short)); // 后一时刻波幅
-
+    // 波纹纹理
     SDL_Texture *waveTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT);
 
-    // 背景框
+    /* 背景框 */
     SDL_FRect backRect = {WINDOW_LOGIN_DEFAULT_WIDTH / 2.0f - 300.0f, WINDOW_LOGIN_DEFAULT_HEIGHT / 2.0f - 150.0f,
                           600.0f, 300.0f};
-    SDL_Texture *backTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, backRect.w, backRect.h);
-    ebo backEBO = {0};
+    SDL_Texture *backTexture = drawRoundRect(backRect.w, backRect.h,
+                                               (SDL_Color[]){(SDL_Color){0x74, 0xEB, 0xD5, 0xFF},
+                                                             (SDL_Color){0xAC, 0xB6, 0xE5, 0xFF},
+                                                             (SDL_Color){0xAC, 0xB6, 0xE5, 0xFF},
+                                                             (SDL_Color){0x74, 0xEB, 0xD5, 0xFF}},
+                                               0.1f, renderer, NULL);
 
-    // 渲染一个背景框
-    {
-        SDL_SetRenderTarget(renderer, backTexture);
-        SDL_Vertex vertex[4] = {
-            {.color = {0x74, 0xEB, 0xD5, 255},
-             .position = {0, 0},
-             .tex_coord = {0, 0}},
-            {.color = {0xAC, 0xB6, 0xE5, 255},
-             .position = {backRect.w, 0},
-             .tex_coord = {0, 0}},
-            {.color = {0xAC, 0xB6, 0xE5, 255},
-             .position = {backRect.w, backRect.h},
-             .tex_coord = {0, 0}},
-            {.color = {0x74, 0xEB, 0xD5, 255},
-             .position = {0, backRect.h},
-             .tex_coord = {0, 0}},
-        };
-        int index[6] = {0, 1, 2, 0, 2, 3};
-        // 渲染texture
-        SDL_RenderGeometry(renderer, NULL, vertex, 4, index, 6);
-        // 获取背景框的EBO
-        getRoundedBorder(NULL, (int)backRect.w, (int)backRect.h, &backRect, 0.1f, &backEBO, NULL);
-        // 恢复renderer
-        SDL_SetRenderTarget(renderer, NULL);
-        SDL_SetTextureColorMod(backTexture, 0x00, 0x00, 0x00);
-    }
+    /* 消息框 */
+    guiMsg msg = {0};
+    gmInit(&msg,
+           Global.font,
+           NULL,
+           NULL,
+           NULL,
+           NULL,
+           NULL,
+           NULL,
+           (SDL_Rect){20, WINDOW_LOGIN_DEFAULT_HEIGHT - 30 - 20, 250, 30},
+           0.7,
+           10,
+           3000,
+           1000,
+           -1,
+           renderer);
 
-    // 设置输入框结构体
-    int nameRender = 0; // 是否渲染输入内容
+    /* 输入框 */
     guiText name = {0};
     gtInit(&name,
-           (SDL_Rect){backRect.x + (backRect.w - 500) / 2, backRect.y + 80, 500, 40},
-           (SDL_Rect){backRect.x + (backRect.w - 500) / 2, backRect.y + 80 + 2, 500, 40 - 4},
-           (SDL_Color){0, 0, 0, 255});
+           (SDL_Rect){backRect.x + (backRect.w - 500) / 2, backRect.y + 60, 500, 60},
+           0.6,
+           2,
+           Global.font,
+           "请输入用户名",
+           (SDL_Color){0xA0, 0xA0, 0xA0, 0xFF},
+           (SDL_Color){0x00, 0x00, 0x00, 0xff},
+           (SDL_Color){0x80, 0x80, 0x85, 0xFF},
+           (SDL_Color){0x10, 0x10, 0x10, 0xFF},
+           200, 200,
+           renderer);
+    gtSetCenter(&name, true);
 
-    // 输入框
-    SDL_Color textColor[2] = {
-        {0x80, 0x80, 0x80, 0xFF},
-        {0x00, 0x00, 0x00, 0xFF},
-    };
-    SDL_Rect textRect = {
-        .x = name.rect.x,
-        .y = name.rect.y + name.rect.h + 5,
-        .w = name.rect.w,
-        .h = 2,
-    };
+    /* 登陆按钮 */
+    guiButton loginButton = {0};
+    gbInit(&loginButton,
+           &(SDL_Rect){.x = backRect.x + (backRect.w - 400.0f) / 2.0f,
+                       .y = backRect.y + 200.0f,
+                       .w = 190.0f,
+                       .h = 50.0f},
+           "登录",
+           Global.font,
+           &(SDL_Color){0x00, 0x00, 0x00, 0xFF},
+           0.8f,
+           0.2f,
+           &(SDL_Color[3][4])
+           // 一般状态
+           {{{0x00, 0xBF, 0xFF, 0xFF}, {0x00, 0xBF, 0xFF, 0xFF}, {0x00, 0xBF, 0xFF, 0xFF}, {0x00, 0xBF, 0xFF, 0xFF}},
+            // 选中状态
+            {{0x0F, 0xA7, 0xFF, 0xFF}, {0x0F, 0xA7, 0xFF, 0xFF}, {0x0F, 0xA7, 0xFF, 0xFF}, {0x0F, 0xA7, 0xFF, 0xFF}},
+            // 按下状态
+            {{0x1E, 0x90, 0xFF, 0xFF}, {0x1E, 0x90, 0xFF, 0xFF}, {0x1E, 0x90, 0xFF, 0xFF}, {0x1E, 0x90, 0xFF, 0xFF}}},
+           NULL,
+           renderer);
 
-    // 请输入用户名文本渲染
-    SDL_Surface *nameSurface = TTF_RenderUTF8_Blended(Global.font, "请输入用户名", (SDL_Color){0xA0, 0xA0, 0xA0, 0xFF});
-    SDL_Texture *nameTexture = SDL_CreateTextureFromSurface(renderer, nameSurface);
-    float scale = (float)name.textRect.h / (float)nameSurface->h;
-    SDL_FRect nameRect = {
-        .x = (float)name.textRect.x + (name.textRect.w - (float)nameSurface->w * scale) / 2.0f,
-        .y = (float)name.textRect.y,
-        .w = (float)nameSurface->w * scale,
-        .h = (float)name.textRect.h,
-    };
-    SDL_FreeSurface(nameSurface);
-
-    // 登陆按钮
-    SDL_Surface *loginTextSurface = TTF_RenderUTF8_Blended(Global.font, "登陆", (SDL_Color){0x00, 0x00, 0x00, 0xFF});
-    SDL_Texture *loginTextTexture = SDL_CreateTextureFromSurface(renderer, loginTextSurface);
-    SDL_FRect loginButtonRect = {
-        .x = backRect.x + (backRect.w - 400.0f) / 2.0f,
-        .y = backRect.y + 200.0f,
-        .w = 190.0f,
-        .h = 50.0f,
-    };
-    float scale1 = 0.8f;                                                    // 高度所占比例
-    float scale2 = loginButtonRect.h * scale1 / (float)loginTextSurface->h; // 实际缩放比例
-    SDL_FRect loginTextRect = {
-        .x = loginButtonRect.x + (loginButtonRect.w - ((float)loginTextSurface->w * scale2)) / 2.0f,
-        .y = loginButtonRect.y + (loginButtonRect.h - ((float)loginTextSurface->h * scale2)) / 2.0f,
-        .w = (float)loginTextSurface->w * scale2,
-        .h = (float)loginTextSurface->h * scale2,
-    };
-    ebo loginEBOA = {0}; // 正常状态
-    ebo loginEBOB = {0}; // 按下状态
-    ebo *loginEBO = &loginEBOA;
-    getRoundedBorder(NULL, loginButtonRect.w, loginButtonRect.h, &loginButtonRect,
-                     0.2f, &loginEBOA,
-                     &(SDL_Color){0x00, 0xBF, 0xFF, 0xFF});
-    getRoundedBorder(NULL, loginButtonRect.w, loginButtonRect.h, &loginButtonRect,
-                     0.2f, &loginEBOB,
-                     &(SDL_Color){0x1E, 0x90, 0xFF, 0xFF});
-
-    // 注册按钮
-    SDL_Surface *regTextSurface = TTF_RenderUTF8_Blended(Global.font, "注册", (SDL_Color){0x00, 0x00, 0x00, 0xFF});
-    SDL_Texture *regTextTexture = SDL_CreateTextureFromSurface(renderer, regTextSurface);
-    SDL_FRect regButtonRect = {
-        .x = loginButtonRect.x + loginButtonRect.w + 20.0f,
-        .y = loginButtonRect.y,
-        .w = loginButtonRect.w,
-        .h = loginButtonRect.h,
-    };
-    scale1 = 0.8f;                                                // 高度所占比例
-    scale2 = regButtonRect.h * scale1 / (float)regTextSurface->h; // 实际缩放比例
-    SDL_FRect regTextRect = {
-        .x = regButtonRect.x + (regButtonRect.w - ((float)regTextSurface->w * scale2)) / 2.0f,
-        .y = regButtonRect.y + (regButtonRect.h - ((float)regTextSurface->h * scale2)) / 2.0f,
-        .w = (float)regTextSurface->w * scale2,
-        .h = (float)regTextSurface->h * scale2,
-    };
-    ebo regEBOA = {0}; // 正常状态
-    ebo regEBOB = {0}; // 按下状态
-    ebo *regEBO = &regEBOA;
-    getRoundedBorder(NULL, regButtonRect.w, regButtonRect.h, &regButtonRect,
-                     0.2f, &regEBOA,
-                     &(SDL_Color){0xFF, 0xFF, 0xFF, 0xFF});
-    getRoundedBorder(NULL, regButtonRect.w, regButtonRect.h, &regButtonRect,
-                     0.2f, &regEBOB,
-                     &(SDL_Color){0xC0, 0xC0, 0xC0, 0xFF});
+    /* 注册按钮 */
+    guiButton regButton = {0};
+    gbInit(&regButton,
+           &(SDL_Rect){
+               .x = loginButton.Rect.x + loginButton.Rect.w + 20,
+               .y = loginButton.Rect.y,
+               .w = loginButton.Rect.w,
+               .h = loginButton.Rect.h},
+           "注册",
+           Global.font,
+           &(SDL_Color){0x00, 0x00, 0x00, 0xFF},
+           0.8f,
+           0.2f,
+           &(SDL_Color[3][4])
+           // 一般状态
+           {{{0xFF, 0xFF, 0xFF, 0xFF}, {0xFF, 0xFF, 0xFF, 0xFF}, {0xFF, 0xFF, 0xFF, 0xFF}, {0xFF, 0xFF, 0xFF, 0xFF}},
+            // 选中状态
+            {{0xE0, 0xE0, 0xE0, 0xFF}, {0xE0, 0xE0, 0xE0, 0xFF}, {0xE0, 0xE0, 0xE0, 0xFF}, {0xE0, 0xE0, 0xE0, 0xFF}},
+            // 按下状态
+            {{0xC0, 0xC0, 0xC0, 0xFF}, {0xC0, 0xC0, 0xC0, 0xFF}, {0xC0, 0xC0, 0xC0, 0xFF}, {0xC0, 0xC0, 0xC0, 0xFF}}},
+           NULL,
+           renderer);
 
     // 设置水波纹
     waveTime = SDL_GetTicks64();
 
-    // 动画时间
-    int time1 = 0, time2 = 0;
-
     // 设置线程
     setThread(false);
-
-    // 渲染
 
     /**
      * 全局退出标识由线程设置
      * 线程退出标识由消息循环设置
      */
-    Global.quit = 1; // 全局退出标识
-    int quit = 1;    // 线程退出标识
-    while (getThread() == true ? quit : Global.quit && quit)
+    int quit_th = 1;  // 线程退出标识
+    int quit_gui = 1; // GUI退出标识
+    while (getThread() == true ? quit_gui : quit_th && quit_gui)
     {
         // 事件处理
         SDL_Event event = {0};
@@ -301,7 +258,7 @@ unsigned int gui_login()
             switch (event.type)
             {
             case SDL_QUIT:
-                quit = 0;
+                quit_gui = 0;
                 break;
 
             case SDL_MOUSEMOTION: // 移动事件
@@ -313,12 +270,8 @@ unsigned int gui_login()
                 // 按下状态移动
                 if (event.motion.state == SDL_BUTTON_LMASK)
                 {
-                    // 在背景框内按下移动
-                    if (SDL_PointInFRect(&mouse, &backRect) == SDL_TRUE)
-                    {
-                    }
                     // 在背景框外按下移动
-                    else
+                    if (SDL_FALSE == SDL_PointInFRect(&mouse, &backRect))
                     {
                         disturb(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, event.motion.x, event.motion.y, 4, 128, buf);
                     }
@@ -328,118 +281,65 @@ unsigned int gui_login()
             case SDL_MOUSEBUTTONDOWN:                       // 按下事件
                 if (event.button.button == SDL_BUTTON_LEFT) // 左键按下
                 {
-                    // 在背景框内按下
-                    if (SDL_PointInFRect(&mouse, &backRect) == SDL_TRUE)
-                    {
-                        SDL_FRect tmpRect = {
-                            .x = (float)name.rect.x,
-                            .y = (float)name.rect.y,
-                            .w = (float)name.rect.w,
-                            .h = (float)name.rect.h};
-
-                        // 按下登陆按钮
-                        if (SDL_PointInFRect(&mouse, &loginButtonRect) == SDL_TRUE &&
-                            getThread() == false)
-                        {
-                            // 设置按下状态
-                            SET_FLAG(login_button);
-
-                            // 切换EBO
-                            loginEBO = &loginEBOB;
-                        }
-                        // 按下注册按钮
-                        else if (SDL_PointInFRect(&mouse, &regButtonRect) == SDL_TRUE &&
-                                 getThread() == false)
-                        {
-                            // 设置按下状态
-                            SET_FLAG(reg_button);
-
-                            // 切换EBO
-                            regEBO = &regEBOB;
-                        }
-
-                        // 在背景框内按下并且没有在处理文本框
-                        if (SDL_PointInFRect(&mouse, &tmpRect) == SDL_TRUE &&
-                            name.isRun == false)
-                        {
-                            SET_FLAG(text_Click);
-                        }
-                        // 在背景框外按下并且正在处理文本框
-                        else if (SDL_PointInFRect(&mouse, &tmpRect) == SDL_FALSE &&
-                                 name.isRun == true)
-                        {
-                            nameRender = strlen(name.textIn);
-                            SET_FLAG(text_Click_Not);
-                        }
-                    }
                     // 在背景框外按下
-                    else
+                    if (SDL_FALSE == SDL_PointInFRect(&mouse, &backRect))
                     {
                         // 创建水波纹
                         disturb(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, event.button.x, event.button.y, 5, 2560, buf);
                     }
                 }
                 break;
-            // 弹起事件
-            case SDL_MOUSEBUTTONUP:
-                if (event.button.button == SDL_BUTTON_LEFT) // 左键弹起
-                {
-                    // 如果按下登陆按钮
-                    if (CHECK_FLAG(login_button))
-                    {
-                        // 清除按下状态
-                        CLEAR_FLAG(login_button);
-
-                        // 切换EBO
-                        loginEBO = &loginEBOA;
-
-                        // 检测是否在按钮内
-                        if (SDL_PointInFRect(&mouse, &loginButtonRect) == SDL_TRUE)
-                        {
-                            DEBUG("登陆\n");
-
-                            // 登陆
-                            setThread(true);
-
-                            // 创建线程
-                            strcpy(Global.name, name.textIn);
-                            pthread_create(&Global.thread, NULL, login, &loginRet);
-                        }
-                    }
-
-                    // 如果按下注册按钮
-                    else if (CHECK_FLAG(reg_button))
-                    {
-                        // 清除按下状态
-                        CLEAR_FLAG(reg_button);
-
-                        // 切换EBO
-                        regEBO = &regEBOA;
-
-                        // 检测是否在按钮内
-                        if (SDL_PointInFRect(&mouse, &regButtonRect) == SDL_TRUE)
-                        {
-                            DEBUG("注册\n");
-
-                            // 注册
-                            setThread(true);
-
-                            // 创建线程
-                            strcpy(Global.name, name.textIn);
-                            pthread_create(&Global.thread, NULL, reg, &loginRet);
-                        }
-                    }
-                }
-                break;
             }
-            gtEvent(&name, &event, renderer);
+
+            // 输入框事件
+            gtEvent(&name, &event);
+
+            // 确认按钮
+            if (gbEvent(&loginButton, &event) &&
+                strlen(name.textIn) > 0 && strlen(name.textIn) < USER_LEN &&
+                getThread() == false)
+            {
+                gmAdd(&msg, "登陆中...", guiMsgEnum_Warning);
+
+                // 登陆
+                setThread(true);
+
+                // 设置参数
+                loginThreadParam *arg = malloc(sizeof(loginThreadParam));
+                strncpy(arg->name, name.textIn, sizeof(arg->name));
+                arg->quit = &quit_th;
+                arg->ret = &loginRet;
+                arg->msg = &msg;
+
+                // 创建线程
+                pthread_create(&Global.thread, NULL, login, arg);
+            }
+
+            // 注册按钮
+            if (gbEvent(&regButton, &event) &&
+                strlen(name.textIn) > 0 && strlen(name.textIn) < USER_LEN &&
+                getThread() == false)
+            {
+                gmAdd(&msg, "注册中...", guiMsgEnum_Warning);
+
+                // 注册
+                setThread(true);
+
+                // 设置参数
+                regThreadParam *arg = malloc(sizeof(regThreadParam));
+                strncpy(arg->name, name.textIn, sizeof(arg->name));
+                arg->msg = &msg;
+
+                // 创建线程
+                pthread_create(&Global.thread, NULL, reg, arg);
+            }
         }
 
         // 清空屏幕
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
 
-        // 创建波纹
+        /* 创建新的波纹点 */
         if (SDL_GetTicks64() - waveTime > waveCount * 600)
         {
             disturb(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT,
@@ -448,6 +348,7 @@ unsigned int gui_login()
                     buf);
             waveCount++;
         }
+
         /* 渲染动态水波纹背景 */
         // 计算下一帧波幅
         nextFrame(WINDOW_LOGIN_DEFAULT_WIDTH, WINDOW_LOGIN_DEFAULT_HEIGHT, &buf, &buf2);
@@ -457,113 +358,25 @@ unsigned int gui_login()
         SDL_LockTexture(waveTexture, NULL, (void **)&color_tar, &surface->pitch);
         SDL_UpdateTexture(waveTexture, NULL, color_tar, surface->pitch);
         SDL_UnlockTexture(waveTexture);
-        // 渲染背景
+        // 渲染水波纹
         SDL_RenderCopy(renderer, waveTexture, NULL, NULL);
 
-        // 渲染背景框
-        drawFromEBO(renderer, backTexture, backEBO);
+        /* 渲染背景框 */
+        SDL_RenderCopyF(renderer, backTexture, NULL, &backRect);
 
-        // 渲染文本框
-        if (CHECK_FLAG(text_Click))
-        {
-            //  绘制初始化选中按钮框
-            if (!CHECK_FLAG(text_Click_Start))
-            {
-                // 标志为已初始化
-                SET_FLAG(text_Click_Start);
+        /* 渲染文本框 */
+        gtRender(&name);
 
-                // 更新时间
-                time1 = SDL_GetTicks64();
-            }
+        /* 渲染按钮 */
+        gbRender(&loginButton);
+        gbRender(&regButton);
 
-            // 获取间隔时间
-            time2 = SDL_GetTicks64() - time1;
-
-            // 绘制结束
-            if (time2 > 200)
-            {
-                CLEAR_FLAG(text_Click);
-                CLEAR_FLAG(text_Click_Start);
-
-                SDL_SetRenderDrawColor(renderer, textColor[1].r, textColor[1].g, textColor[1].b, textColor[1].a);
-                SDL_RenderDrawRect(renderer, &textRect);
-            }
-            // 绘制动画
-            else
-            {
-                float scale = (float)time2 / 200.0f;
-                SDL_Rect tmpRect = {0};
-                tmpRect.w = textRect.w * scale;
-                tmpRect.h = textRect.h;
-                tmpRect.x = textRect.x + (int)((float)textRect.w - (float)tmpRect.w) / 2.0f;
-                tmpRect.y = textRect.y;
-                SDL_SetRenderDrawColor(renderer, textColor[0].r, textColor[0].g, textColor[0].b, textColor[0].a);
-                SDL_RenderDrawRect(renderer, &textRect);
-                SDL_SetRenderDrawColor(renderer, textColor[1].r, textColor[1].g, textColor[1].b, textColor[1].a);
-                SDL_RenderDrawRect(renderer, &tmpRect);
-            }
-        }
-        else if (CHECK_FLAG(text_Click_Not))
-        {
-            //  绘制初始化选中按钮框
-            if (!CHECK_FLAG(text_Click_Not_Start))
-            {
-                // 标志为已初始化
-                SET_FLAG(text_Click_Not_Start);
-
-                // 更新时间
-                time1 = SDL_GetTicks64();
-            }
-
-            // 获取间隔时间
-            time2 = SDL_GetTicks64() - time1;
-
-            // 绘制结束
-            if (time2 > 200)
-            {
-                CLEAR_FLAG(text_Click_Not);
-                CLEAR_FLAG(text_Click_Not_Start);
-
-                SDL_SetRenderDrawColor(renderer, textColor[0].r, textColor[0].g, textColor[0].b, textColor[0].a);
-                SDL_RenderDrawRect(renderer, &textRect);
-            }
-            // 绘制动画
-            else
-            {
-                float scale = (float)time2 / 200.0f;
-
-                SDL_SetRenderDrawColor(renderer,
-                                       textColor[1].r + (int)(((float)textColor[0].r - (float)textColor[1].r) * scale),
-                                       textColor[1].g + (int)(((float)textColor[0].g - (float)textColor[1].g) * scale),
-                                       textColor[1].b + (int)(((float)textColor[0].b - (float)textColor[1].b) * scale),
-                                       textColor[0].a);
-                SDL_RenderDrawRect(renderer, &textRect);
-            }
-        }
-        else
-        {
-            if (name.isRun == true)
-                SDL_SetRenderDrawColor(renderer, textColor[1].r, textColor[1].g, textColor[1].b, textColor[1].a);
-            else
-                SDL_SetRenderDrawColor(renderer, textColor[0].r, textColor[0].g, textColor[0].b, textColor[0].a);
-            SDL_RenderDrawRect(renderer, &textRect);
-        }
-
-        // 渲染文本
-        if (nameRender || name.isRun == true)
-            gtRender(&name, renderer);
-        // 渲染提示文本
-        else
-            SDL_RenderCopyF(renderer, nameTexture, NULL, &nameRect);
-
-        // 绘制按钮
-        drawFromEBO(renderer, NULL, *loginEBO);
-        SDL_RenderCopyF(renderer, loginTextTexture, NULL, &loginTextRect);
-        drawFromEBO(renderer, NULL, *regEBO);
-        SDL_RenderCopyF(renderer, regTextTexture, NULL, &regTextRect);
+        /* 渲染消息框 */
+        gmRender(&msg);
 
         // 更新Renderer
         SDL_RenderPresent(renderer);
+
         // 控制刷新率
         frameTime = SDL_GetTicks64() - frameStart;
         if (frameTime < FPS_MS)
@@ -571,21 +384,11 @@ unsigned int gui_login()
     }
 
     // 释放资源
-    SDL_FreeSurface(regTextSurface);
-    SDL_DestroyTexture(regTextTexture);
-    freeEBO(&regEBOA);
-    freeEBO(&regEBOB);
+    gmDestroy(&msg);
+    gbDestroy(&loginButton);
+    gbDestroy(&regButton);
+    gtDestroy(&name);
 
-    SDL_FreeSurface(loginTextSurface);
-    SDL_DestroyTexture(loginTextTexture);
-    freeEBO(&loginEBOA);
-    freeEBO(&loginEBOB);
-
-    SDL_DestroyTexture(nameTexture);
-
-    gtFree(&name);
-
-    freeEBO(&backEBO);
     SDL_DestroyTexture(backTexture);
 
     free(buf);
@@ -603,52 +406,86 @@ error:
     return LOGIN_ERROR;
 }
 
-void *login(void *arg)
+static void *login(void *arg)
 {
+    // 设置传递的参数
+    int *quit = ((loginThreadParam *)arg)->quit;
+    unsigned int *loginRet = ((loginThreadParam *)arg)->ret;
+    guiMsg *msg = ((loginThreadParam *)arg)->msg;
+    char name[USER_LEN] = {0};
+    strncpy(name, ((loginThreadParam *)arg)->name, sizeof(name));
+    free(arg);
+
     int ret;
     uint8_t key[ZUC_KEY_SIZE] = {0};
     uint8_t iv[ZUC_KEY_SIZE] = {0};
 
     // 获取用户信息
-    ret = userGet(USER_CONFIG, Global.name, &Global.SM2user, key, iv);
-    CHECK(ret == true, "未在本地检测到该用户");
+    ret = userGet(USER_CONFIG, name, &Global.SM2user, key, iv);
+    if(ret == false)
+        gmAdd(msg, "未在检测到该用户", guiMsgEnum_Error);
+    CHECK(ret == true, "未在检测到该用户");
 
     // 计算出ZUC密钥
     zuc_init(&Global.ZUCstate, key, iv);
 
     // 与在服务端登陆
-    ret = loginUser(Global.name, &Global.SM2server, &Global.SM2user);
-    CHECK(ret == true, "登陆失败\n");
+    ret = loginUser(name, &Global.SM2server, &Global.SM2user);
+    CHECK(ret == 0, "登陆失败\n");
 
     // 成功登陆
-    Global.quit = 0;
-    *(unsigned int *)arg = LOGIN_SUCCESS;
+    *quit = 0;
+    *loginRet = LOGIN_SUCCESS;
+
+    gmAdd(msg, "登陆成功", guiMsgEnum_Success);
+
+    setThread(false);
+    return NULL;
 
 error:
+    if (ret == 2)
+        gmAdd(msg, "用户不存在", guiMsgEnum_Error);
+    gmAdd(msg, "登陆失败", guiMsgEnum_Error);
+
     setThread(false);
     return NULL;
 }
 
-void *reg(void *arg)
+static void *reg(void *arg)
 {
+    // 设置传递的参数
+    guiMsg *msg = ((regThreadParam *)arg)->msg;
+    char name[USER_LEN] = {0};
+    strncpy(name, ((regThreadParam *)arg)->name, sizeof(name));
+    free(arg);
+
     int ret;
+    SM2_KEY SM2user = {0};
     uint8_t key[ZUC_KEY_SIZE] = {0};
     uint8_t iv[ZUC_KEY_SIZE] = {0};
 
     // 向服务器请求注册
-    memset(&Global.SM2user, 0, sizeof(SM2_KEY));
-    ret = registerUser(Global.name, &Global.SM2server, &Global.SM2user);
-    CHECK(ret == true);
+    ret = registerUser(name, &Global.SM2server, &SM2user);
+    CHECK(ret == 0);
 
     // 随机生成ZUC密钥和初始化向量
     zucKeyVi(key, iv);
 
     // 写入配置文件
-    ret = userAdd(USER_CONFIG, Global.name, &Global.SM2user, key, iv);
+    ret = userAdd(USER_CONFIG, name, &SM2user, key, iv);
     CHECK(ret == true, "写入配置文件失败\n");
 
-    DEBUG("注册成功\n");
+    gmAdd(msg, "注册成功", guiMsgEnum_Success);
+
+    setThread(false);
+    return NULL;
 
 error:
+
+    if (ret == 2)
+        gmAdd(msg, "用户已存在", guiMsgEnum_Error);
+    gmAdd(msg, "注册失败", guiMsgEnum_Error);
+
     setThread(false);
+    return NULL;
 }

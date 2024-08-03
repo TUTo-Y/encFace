@@ -27,12 +27,14 @@ int main()
 
     // 读取公钥
     fp = fopen("sm2_public_key.pem", "r");
-    sm2_public_key_info_from_pem(&public, fp);
+    sm2_public_key_info_from_pem(&key2, fp);
+    // sm2_public_key_info_from_pem(&public, fp);
     fclose(fp);
 
     // 读取私钥
     fp = fopen("sm2_private_key.pem", "r");
-    sm2_private_key_info_decrypt_from_pem(&private, "password", fp);
+    sm2_private_key_info_decrypt_from_pem(&key2, "password", fp);
+    // sm2_private_key_info_decrypt_from_pem(&private, "password", fp);
     fclose(fp);
 
     char data[] = "Hello World!";
@@ -42,13 +44,13 @@ int main()
     size_t cipherlen = 0;
 
     printf("加密前: %s\n大小=%d\n", data, strlen(data));
-    sm2_encrypt(&public, (uint8_t *)data, strlen(data), cipher, &cipherlen);
+    sm2_encrypt(&key2, (uint8_t *)data, strlen(data), cipher, &cipherlen);
 
     // 解密
     char plain[SM2_MAX_PLAINTEXT_SIZE] = {0};
     size_t plainlen = 0;
 
-    sm2_decrypt(&private, (uint8_t *)cipher, cipherlen, plain, &plainlen);
+    sm2_decrypt(&key2, (uint8_t *)cipher, cipherlen, plain, &plainlen);
     printf("解密后: %s\n大小=%d\n", plain, plainlen);
     
 

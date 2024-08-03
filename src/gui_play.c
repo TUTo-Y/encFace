@@ -1,683 +1,591 @@
-/**
- * 你怎么知道这里全是💩
- */
 #include "gui_play.h"
 
-// 渲染按钮
-#define drawButton(colorCount)                                                                                                                                    \
-    {                                                                                                                                                             \
-        drawCircle(renderer, buttonPoint.x, buttonPoint.y, buttonRadius, buttonColor[colorCount]);                                                                \
-        SDL_SetRenderDrawColor(renderer, buttonMsgColor[colorCount].r, buttonMsgColor[colorCount].g, buttonMsgColor[colorCount].b, buttonMsgColor[colorCount].a); \
-        SDL_RenderFillRectF(renderer, &buttonMsgWRect);                                                                                                           \
-        SDL_RenderFillRectF(renderer, &buttonMsgHRect);                                                                                                           \
+#define GUI_PLAY_BUTTON_RUN_SELECT_TIME 100 // 按钮选中动画时间
+#define GUI_PLAY_BUTTON_RUN_LEAVE_TIME 100  // 按钮离开动画时间
+#define GUI_PLAY_BUTTON_RUN_PRESS_TIME 150  // 按钮按下动画时间
+#define GUI_PLAY_BUTTON_WATT_1_TIME 200     // 等待动画1时间
+#define GUI_PLAY_BUTTON_WATT_2_TIME 200     // 等待动画2时间
+#define GUI_PLAY_BUTTON_SIZE \
+    (MIN(WINDOW_PLAY_DEFAULT_WIDTH, WINDOW_PLAY_DEFAULT_HEIGHT) * 0.06f) // 按钮大小
+
+void getFaceThread(faceThreadParam *param);
+
+/** \brief 选择图片文件 */
+static void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
+{
+    if (response_id == GTK_RESPONSE_ACCEPT)
+    {
+        GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
+        g_autofree char *filename = gtk_file_chooser_get_filename(chooser);
+        g_strlcpy((gchar *)data, filename, PATH_MAX);
+    }
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+bool selectImageFile(char *path, size_t size)
+{
+    if (path == NULL || size == 0)
+    {
+        return false;
+    }
+    *path = '\0';
+
+    GtkWidget *dialog = gtk_file_chooser_dialog_new("选择图片文件",
+                                                    NULL,
+                                                    GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                    "取消",
+                                                    GTK_RESPONSE_CANCEL,
+                                                    "选择",
+                                                    GTK_RESPONSE_ACCEPT,
+                                                    NULL);
+
+    GtkFileFilter *filter = gtk_file_filter_new();
+    gtk_file_filter_set_name(filter, "图片文件");
+
+    const char *patterns[] = {
+        "*.[Bb][Mm][Pp]", "*.[Gg][Ii][Ff]", "*.[Jj][Pp][Gg]", "*.[Jj][Pp][Ee][Gg]",
+        "*.[Ll][Bb][Mm]", "*.[Pp][Cc][Xx]", "*.[Pp][Nn][Gg]", "*.[Pp][Nn][Mm]",
+        "*.[Ss][Vv][Gg]", "*.[Tt][Gg][Aa]", "*.[Tt][Ii][Ff][Ff]", "*.[Ww][Ee][Bb][Pp]",
+        "*.[Xx][Cc][Ff]", "*.[Xx][Pp][Mm]", "*.[Xx][Vv]"};
+
+    for (size_t i = 0; i < G_N_ELEMENTS(patterns); ++i)
+    {
+        gtk_file_filter_add_pattern(filter, patterns[i]);
     }
 
-/**
- * \brief 渲染用户信息
- * \param renderer 渲染器
- * \param face 用户信息
- * \param faceSurface 头像表面
- * \param faceTexture 头像纹理
- * \return 是否渲染成功
- */
-bool renderInfo2Surface(SDL_Renderer *renderer, list *face, list **faceSurface, list **faceTexture);
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
+    g_signal_connect(dialog, "response", G_CALLBACK(on_dialog_response), path);
+    g_signal_connect_swapped(dialog, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
-// 加载人脸数据
-bool choiceImage(
-    const SDL_Rect *windowRect,
-    SDL_Renderer *renderer,
-    SDL_Surface **surface, SDL_Texture **texture,
-    SDL_FRect *surfaceRect, float *scale, float *scale2,
-    list **face, list **faceSurface, list **faceTexture);
+    gtk_widget_show(dialog);
+    gtk_main();
 
-/**
- * \brief 使用多线程加载数据
- */
-void *getFace(void *arg);
-
-// 根据窗口大小获取按钮的位置
-static SDL_FPoint getButtonPost(const SDL_Rect *windowRect)
-{
-    return (SDL_FPoint){
-        .x = windowRect->w * 0.8f,
-        .y = windowRect->h * 0.8f};
+    return *path != '\0';
 }
 
-// 根据窗口大小获取按钮的半径大小
-static float getButtonRadius(const SDL_Rect *windowRect)
+/** \brief 绘制按钮 */
+static void gpRenderButtonDraw(guiPlay *gp, SDL_Texture *texture, float r)
 {
-    return MIN(windowRect->w, windowRect->h) * 0.06f;
+    if (texture == NULL)
+        texture = *gp->buttonTexture;
+    if (r < 0)
+        r = gp->buttonRadius;
+    // 绘制按钮
+    SDL_RenderCopyF(gp->renderer, texture, NULL, &(SDL_FRect){.x = gp->buttonCenter.x - r, .y = gp->buttonCenter.y - r, .w = r * 2, .h = r * 2});
+
+    // 绘制按钮十字
+    SDL_SetRenderDrawColor(gp->renderer, 0, 0, 0, 255);
+    SDL_RenderFillRectF(gp->renderer, &(SDL_FRect){
+                                          .x = gp->buttonCenter.x - r * 0.5f,
+                                          .y = gp->buttonCenter.y - r * 0.06f,
+                                          .w = r,
+                                          .h = r * 0.12f});
+    SDL_RenderFillRectF(gp->renderer, &(SDL_FRect){
+                                          .x = gp->buttonCenter.x - r * 0.06f,
+                                          .y = gp->buttonCenter.y - r * 0.5f,
+                                          .w = r * 0.12f,
+                                          .h = r});
 }
 
-// 根据按钮位置设置十字
-static void setCross(SDL_FRect *buttonMsgWRect, SDL_FRect *buttonMsgHRect, const SDL_FPoint *buttonPoint, float buttonRadius)
+/** \brief 初始化界面Play一些数据 */
+static void gpInit(guiPlay *gm, list *figure, guiMsg *msg, SDL_Renderer *renderer)
 {
-    *buttonMsgWRect = (SDL_FRect){
-        .x = buttonPoint->x - buttonRadius * 0.5f,
-        .y = buttonPoint->y - buttonRadius * 0.06f,
-        .w = buttonRadius * 1.0f,
-        .h = buttonRadius * 0.12f};
+    // 清空界面1数据
+    memset(gm, 0, sizeof(guiPlay));
 
-    *buttonMsgHRect = (SDL_FRect){
-        .x = buttonPoint->x - buttonRadius * 0.06f,
-        .y = buttonPoint->y - buttonRadius * 0.5f,
-        .w = buttonRadius * 0.12f,
-        .h = buttonRadius * 1.0f};
-}
+    // 设置按钮大小, 位置及纹理
+    gm->buttonRadius = GUI_PLAY_BUTTON_SIZE;
+    gm->buttonCenter = (SDL_FPoint){
+        .x = WINDOW_PLAY_DEFAULT_WIDTH * 0.8f,
+        .y = WINDOW_PLAY_DEFAULT_HEIGHT * 0.8f};
+    gm->buttonTextureS = drawCircle(gm->buttonRadius * 2, (SDL_Color){200, 250, 200, 255}, renderer, true);
+    gm->buttonTextureP = drawCircle(gm->buttonRadius * 2, (SDL_Color){200, 240, 210, 255}, renderer, true);
+    gm->buttonTexture = &gm->buttonTextureS;
 
-// 重置按钮位置
-static void resetButton(SDL_FPoint *buttonPoint, float *buttonRadius, SDL_FRect *buttonMsgWRect, SDL_FRect *buttonMsgHRect, const SDL_Rect *windowRect)
-{
-    // 设置按钮位置
-    *buttonPoint = getButtonPost(windowRect);
+    // 设置图片数据
+    gm->scale1 = gm->scale2 = 1.0f;
 
-    // 设置按钮半径
-    *buttonRadius = getButtonRadius(windowRect);
+    // 设置动画时间
+    gm->time = 0;
 
-    // 设置十字
-    setCross(buttonMsgWRect, buttonMsgHRect, buttonPoint, *buttonRadius);
-}
+    // 设置人物信息
+    gm->figure = figure;
 
-/**
- * \brief gui_play界面
- */
-void gui_play()
-{
-    int ret = 0;
-
-    Uint64 frameStart = 0, frameTime = 0; // 控制帧率
-
-    SDL_FPoint mouse = {0};    // 鼠标位置
-    SDL_Rect windowRect = {0}; // 窗口位置
-
-    float buttonRadius = 0.0f;      // 按钮半径
-    SDL_FPoint buttonPoint = {0};   // 按钮中心点
-    SDL_FRect buttonMsgWRect = {0}; // 按钮十字区域W
-    SDL_FRect buttonMsgHRect = {0}; // 按钮十字区域H
-
-    SDL_Surface *surface = NULL; // 照片Surface
-    SDL_Texture *texture = NULL; // 照片Texture
-    SDL_FRect surfaceRect = {0}; // 图片在窗口的实际区域
-    ebo imageEBO = {0};          // 图片渲染的顶点数据
-    float scale = 0.0f;          // 图片缩放比例(修正宽度比原图像宽度的比例，用于调整图像大小以适应窗口)
-    float scale2 = 0.0f;         // 图片二次缩放比例(由滚轮控制)
-
-    list *face = NULL;        // 人脸列表
-    list *faceSurface = NULL; // 人脸Surface列表
-    list *faceTexture = NULL; // 人脸Texture列表
-
-    // 背景颜色莫奈的灰，温柔的灰
-    SDL_Color backGroundColor = {165, 166, 177, 255};
-    // 按钮内容颜色
-    SDL_Color buttonMsgColor[] = {
-        {75, 75, 75, 255},  // 未选中
-        {50, 50, 50, 255},  // 选中时
-        {10, 10, 10, 255}}; // 点击时
-    // 按钮颜色
-    SDL_Color buttonColor[] = {
-        {200, 250, 200, 255},  // 未选中
-        {210, 255, 210, 255},  // 选中时
-        {200, 245, 210, 255}}; // 点击时
-    // 等待时八个圈圈的颜色
-    SDL_Color wattColor[] = {
-        {200, 250, 200, 255 / 4.5f},
-        {200, 250, 200, 255 / 4.0f},
-        {200, 250, 200, 255 / 3.5f},
-        {200, 250, 200, 255 / 3.0f},
-        {200, 250, 200, 255 / 2.5f},
-        {200, 250, 200, 255 / 2.0f},
-        {200, 250, 200, 255 / 1.5f},
-        {200, 250, 200, 255 / 1.0f},
-    };
-
-    // 创建窗口
-    SDL_Window *window = SDL_CreateWindow("encFace", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_PLAY_DEFAULT_WIDTH, WINDOW_PLAY_DEFAULT_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    CHECK(window != NULL, "创建窗口失败 : %s\n", SDL_GetError());
-
-    // 设置窗口的最小大小
-    SDL_SetWindowMinimumSize(window, 400, 400);
-
-    // 创建渲染器
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    CHECK(renderer != NULL, "创建渲染器失败 : %s\n", SDL_GetError());
+    // 设置消息队列
+    gm->msg = msg;
 
     // 设置渲染器
-    ret = SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    CHECK(ret == 0, "设置渲染器错误 : %s\n", SDL_GetError());
+    gm->renderer = renderer;
+}
 
-    // 初始化窗口全局数据
-    SDL_GetWindowPosition(window, &windowRect.x, &windowRect.y);
-    SDL_GetWindowSize(window, &windowRect.w, &windowRect.h);
+/** \brief 处理按钮事件 */
+static int gpEventButton(guiPlay *gp, SDL_Event *event)
+{
+    // 未按下
+    int ret = 0;
 
-    // 加载初始化图片
-    // surface = IMG_Load(TEAM_IMAGE);
-    surface = NULL;
-    if (!surface)
+    switch (event->type)
     {
-        surface = SDL_CreateRGBSurface(0, windowRect.w, windowRect.h, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
-        SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
+    case SDL_MOUSEMOTION:                            // 移动事件
+        if (event->motion.state != SDL_BUTTON_LMASK) // 按钮未被按下，处理是否进入按钮
+            // 在按钮内移动
+            if (checkPointInCircle((SDL_FPoint){(float)event->motion.x, (float)event->motion.y}, gp->buttonCenter.x, gp->buttonCenter.y, gp->buttonRadius))
+            {
+                // 按钮未被选中 (刚进入按钮)
+                if (!CHECKFLAG(gp->flag, guiPlayEnum_button_selected))
+                {
+                    // 设置按钮被选中
+                    SETFLAG(gp->flag, guiPlayEnum_button_selected);
+
+                    // 设置按钮被选中动画
+                    SETFLAG(gp->flag, guiPlayEnum_button_selected_init);
+                    SETFLAG(gp->flag, guiPlayEnum_button_selected_start);
+                }
+            }
+            // 如果不在按钮区域内移动
+            else
+            {
+                // 如果按钮被选中 (刚离开按钮)
+                if (CHECKFLAG(gp->flag, guiPlayEnum_button_selected))
+                {
+                    // 清除按钮被选中
+                    CLEARFLAG(gp->flag, guiPlayEnum_button_selected);
+
+                    // 设置按钮离开动画
+                    SETFLAG(gp->flag, guiPlayEnum_button_leave_init);
+                    SETFLAG(gp->flag, guiPlayEnum_button_leave_start);
+                }
+            }
+
+        break;
+    case SDL_MOUSEBUTTONDOWN:                        // 按下事件
+        if (event->button.button == SDL_BUTTON_LEFT) // 左键按下
+        {
+            // 如果在按钮区域内按下
+            if (CHECKFLAG(gp->flag, guiPlayEnum_button_selected))
+            {
+                // 设置按钮被按下
+                SETFLAG(gp->flag, guiPlayEnum_button_pressed);
+
+                // 设置按钮被按下动画
+                SETFLAG(gp->flag, guiPlayEnum_button_pressed_init);
+                SETFLAG(gp->flag, guiPlayEnum_button_pressed_start);
+            }
+        }
+        break;
+
+    case SDL_MOUSEBUTTONUP:                          // 弹起事件
+        if (event->button.button == SDL_BUTTON_LEFT) // 左键弹起
+        {
+            // 如果按钮被按下
+            if (CHECKFLAG(gp->flag, guiPlayEnum_button_pressed))
+            {
+                // 清除按钮被按下
+                CLEARFLAG(gp->flag, guiPlayEnum_button_pressed);
+
+                // 如果在按钮区域内弹起
+                if (checkPointInCircle((SDL_FPoint){(float)event->button.x, (float)event->button.y}, gp->buttonCenter.x, gp->buttonCenter.y, gp->buttonRadius))
+                {
+                    // 清除颜色
+                    gp->buttonTexture = &gp->buttonTextureS;
+
+                    // 设置被按下
+                    ret = 1;
+                }
+                else
+                {
+                    // 清除按钮被选中
+                    CLEARFLAG(gp->flag, guiPlayEnum_button_selected);
+
+                    // 设置按钮离开动画
+                    SETFLAG(gp->flag, guiPlayEnum_button_leave_init);
+                    SETFLAG(gp->flag, guiPlayEnum_button_leave_start);
+                }
+            }
+        }
+        break;
     }
-    texture = SDL_CreateTextureFromSurface(renderer, surface);
-    resizeImage(&windowRect, &surfaceRect, surface->w, surface->h);
-    scale = surfaceRect.w / surface->w;
-    scale2 = 1.0f;
-    getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO, NULL);
 
-    // 动画计时器
-    Uint64 timer1 = 0;
-    Uint64 timer2 = 0;
+    return ret;
+}
 
-    // 初始化按钮区域
-    resetButton(&buttonPoint, &buttonRadius, &buttonMsgWRect, &buttonMsgHRect, &windowRect);
+/** \brief 按钮渲染 */
+static void gpRenderButton(guiPlay *gp)
+{
+    // 如果被ban则不渲染
+    if (CHECKFLAG(gp->flag, guiPlayEnum_ban))
+        return;
 
-    Global.quit = 1;
-    while (Global.quit)
+    // 渲染按钮动画
+    if (CHECKFLAG(gp->flag, guiPlayEnum_button_selected_start)) // 选中动画
     {
-        SDL_Event event = {0}; // 事件
-        
+        // 初始化
+        if (CHECKFLAG(gp->flag, guiPlayEnum_button_selected_init))
+        {
+            CLEARFLAG(gp->flag, guiPlayEnum_button_selected_init);
+
+            gp->buttonRadius = GUI_PLAY_BUTTON_SIZE * 1.2f;
+            gp->buttonTexture = &gp->buttonTextureS;
+            gp->time = SDL_GetTicks();
+        }
+
+        // 计算时间
+        int time = SDL_GetTicks() - gp->time;
+
+        // 结束
+        if (time > GUI_PLAY_BUTTON_RUN_SELECT_TIME)
+        {
+            CLEARFLAG(gp->flag, guiPlayEnum_button_selected_start);
+            time = GUI_PLAY_BUTTON_RUN_SELECT_TIME;
+        }
+
+        // 渲染
+        gpRenderButtonDraw(gp, NULL, GUI_PLAY_BUTTON_SIZE * (1.0f + 0.2f * time / GUI_PLAY_BUTTON_RUN_SELECT_TIME));
+    }
+    else if (CHECKFLAG(gp->flag, guiPlayEnum_button_leave_start)) // 离开动画
+    {
+        // 初始化
+        if (CHECKFLAG(gp->flag, guiPlayEnum_button_leave_init))
+        {
+            CLEARFLAG(gp->flag, guiPlayEnum_button_leave_init);
+
+            gp->buttonRadius = GUI_PLAY_BUTTON_SIZE;
+            gp->buttonTexture = &gp->buttonTextureS;
+            gp->time = SDL_GetTicks();
+        }
+
+        // 计算时间
+        int time = SDL_GetTicks() - gp->time;
+
+        // 结束
+        if (time > GUI_PLAY_BUTTON_RUN_LEAVE_TIME)
+        {
+            CLEARFLAG(gp->flag, guiPlayEnum_button_leave_start);
+            time = GUI_PLAY_BUTTON_RUN_LEAVE_TIME;
+        }
+
+        // 渲染
+        gpRenderButtonDraw(gp, NULL, GUI_PLAY_BUTTON_SIZE * (1.2f - 0.2f * time / GUI_PLAY_BUTTON_RUN_LEAVE_TIME));
+    }
+    else if (CHECKFLAG(gp->flag, guiPlayEnum_button_pressed_start)) // 按下动画
+    {
+        // 初始化
+        if (CHECKFLAG(gp->flag, guiPlayEnum_button_pressed_init))
+        {
+            CLEARFLAG(gp->flag, guiPlayEnum_button_pressed_init);
+
+            gp->buttonTexture = &gp->buttonTextureP;
+            gp->time = SDL_GetTicks();
+        }
+
+        // 计算时间
+        int time = SDL_GetTicks() - gp->time;
+
+        // 结束
+        if (time > GUI_PLAY_BUTTON_RUN_PRESS_TIME)
+        {
+            CLEARFLAG(gp->flag, guiPlayEnum_button_pressed_start);
+            time = GUI_PLAY_BUTTON_RUN_PRESS_TIME;
+        }
+
+        // 渲染
+        float r = GUI_PLAY_BUTTON_SIZE * 1.2f * time / GUI_PLAY_BUTTON_RUN_PRESS_TIME;
+        SDL_RenderCopyF(gp->renderer, gp->buttonTextureS, NULL, &(SDL_FRect){.x = gp->buttonCenter.x - gp->buttonRadius, .y = gp->buttonCenter.y - gp->buttonRadius, .w = gp->buttonRadius * 2, .h = gp->buttonRadius * 2});
+        SDL_RenderCopyF(gp->renderer, gp->buttonTextureP, NULL, &(SDL_FRect){.x = gp->buttonCenter.x - r, .y = gp->buttonCenter.y - r, .w = r * 2, .h = r * 2});
+
+        // 绘制按钮十字
+        SDL_SetRenderDrawColor(gp->renderer, 0, 0, 0, 255);
+        SDL_RenderFillRectF(gp->renderer, &(SDL_FRect){
+                                              .x = gp->buttonCenter.x - gp->buttonRadius * 0.5f,
+                                              .y = gp->buttonCenter.y - gp->buttonRadius * 0.06f,
+                                              .w = gp->buttonRadius,
+                                              .h = gp->buttonRadius * 0.12f});
+        SDL_RenderFillRectF(gp->renderer, &(SDL_FRect){
+                                              .x = gp->buttonCenter.x - gp->buttonRadius * 0.06f,
+                                              .y = gp->buttonCenter.y - gp->buttonRadius * 0.5f,
+                                              .w = gp->buttonRadius * 0.12f,
+                                              .h = gp->buttonRadius});
+    }
+    else
+    {
+        gpRenderButtonDraw(gp, NULL, -1.0f);
+    }
+}
+
+/** \brief 处理图片事件 */
+static void gpEventImage(guiPlay *gp, SDL_Event *event)
+{
+    switch (event->type)
+    {
+    case SDL_MOUSEMOTION: // 移动事件
+        // 图片被按下移动
+        if (CHECKFLAG(gp->flag, guiPlayEnum_image_enter))
+        {
+            gp->imageRect.x += (float)event->motion.xrel;
+            gp->imageRect.y += (float)event->motion.yrel;
+        }
+        break;
+    case SDL_MOUSEBUTTONDOWN:                        // 按下事件
+        if (event->button.button == SDL_BUTTON_LEFT) // 左键按下
+        {
+            // 在图片内按下并且不在按钮内
+            if (SDL_TRUE == SDL_PointInFRect(&(SDL_FPoint){(float)event->button.x, (float)event->button.y}, &gp->imageRect) &&
+                !checkPointInCircle((SDL_FPoint){(float)event->button.x, (float)event->button.y}, gp->buttonCenter.x, gp->buttonCenter.y, gp->buttonRadius))
+            {
+                // 设置图片被按下
+                SETFLAG(gp->flag, guiPlayEnum_image_enter);
+            }
+        }
+        break;
+
+    case SDL_MOUSEBUTTONUP:                          // 弹起事件
+        if (event->button.button == SDL_BUTTON_LEFT) // 左键弹起
+        {
+            // 清除图片被按下
+            CLEARFLAG(gp->flag, guiPlayEnum_image_enter);
+        }
+        break;
+    case SDL_MOUSEWHEEL:
+        float scale = 0.20f * event->wheel.y;                        // 缩放比例
+        if (scale + gp->scale2 > 0.1f && scale + gp->scale2 < 15.0f) // 缩放比例限制
+        {
+            float w = gp->imageRect.w;
+            float h = gp->imageRect.h;
+
+            // 设置缩放比例
+            gp->scale2 += scale;
+
+            // 重新设置图片区域
+            gp->imageRect.w = gp->imageW * gp->scale1 * gp->scale2;
+            gp->imageRect.h = gp->imageH * gp->scale1 * gp->scale2;
+
+            // 从鼠标位置向周围缩放
+            gp->imageRect.x -= (((float)event->wheel.mouseX - gp->imageRect.x) / w) * (gp->imageRect.w - w);
+            gp->imageRect.y -= (((float)event->wheel.mouseY - gp->imageRect.y) / h) * (gp->imageRect.h - h);
+        }
+        break;
+    }
+}
+
+/** \brief 处理图片渲染 */
+static void gpRenderImage(guiPlay *gp)
+{
+    SDL_RenderCopyF(gp->renderer, gp->imageTexture, NULL, &gp->imageRect);
+}
+
+/** \brief 处理等待渲染 */
+static void gpRenderWatt(guiPlay *gp)
+{
+    // init
+    if (CHECKFLAG(gp->flag, guiPlayEnum_watt_init))
+    {
+        CLEARFLAG(gp->flag, guiPlayEnum_watt_init);
+        gp->time2 = gp->time = SDL_GetTicks();
+    }
+
+    int time = SDL_GetTicks() - gp->time;
+
+    // 等待动画1
+    if (time <= GUI_PLAY_BUTTON_WATT_1_TIME && getThread() == true)
+    {
+        drawCircle8(&gp->buttonCenter,
+                    GUI_PLAY_BUTTON_SIZE * 1.5f * (float)time / (float)GUI_PLAY_BUTTON_WATT_1_TIME,
+                    GUI_PLAY_BUTTON_SIZE * (1.2f - 0.8f * (float)time / (float)GUI_PLAY_BUTTON_WATT_1_TIME),
+                    time * 0.005f,
+                    (int[]){0x3B, 0x57, 0x73, 0x8F, 0xAB, 0xC7, 0xE3, 0xFF},
+                    gp->buttonTextureS,
+                    gp->renderer);
+    }
+    // 等待动画2
+    else if (getThread() == true)
+    {
+        drawCircle8(&gp->buttonCenter,
+                    GUI_PLAY_BUTTON_SIZE * 1.5f,
+                    GUI_PLAY_BUTTON_SIZE * 0.4f,
+                    time * 0.005f,
+                    (int[]){0x3B, 0x57, 0x73, 0x8F, 0xAB, 0xC7, 0xE3, 0xFF},
+                    gp->buttonTextureS,
+                    gp->renderer);
+    }
+    else
+    {
+        // 处理线程结束数据
+        if (!CHECKFLAG(gp->flag, guiPlayEnum_watt_end))
+        {
+            SETFLAG(gp->flag, guiPlayEnum_watt_end);
+            gp->time = SDL_GetTicks();
+
+            // 渲染用户数据等等
+        }
+
+        int time = SDL_GetTicks() - gp->time;
+
+        // 等待动画3结束
+        if (time >= GUI_PLAY_BUTTON_WATT_2_TIME)
+        {
+            time = GUI_PLAY_BUTTON_WATT_2_TIME;
+
+            CLEARFLAG(gp->flag, guiPlayEnum_watt_end);
+            CLEARFLAG(gp->flag, guiPlayEnum_button_ban);
+        }
+
+        drawCircle8(&gp->buttonCenter,
+                    GUI_PLAY_BUTTON_SIZE * 1.5f * (1.0f - (float)time / (float)GUI_PLAY_BUTTON_WATT_2_TIME),
+                    GUI_PLAY_BUTTON_SIZE * 1.2f * (0.4f + 0.6f * (float)time / (float)GUI_PLAY_BUTTON_WATT_2_TIME),
+                    (SDL_GetTicks() - gp->time2) * 0.005f,
+                    (int[]){0x3B, 0x57, 0x73, 0x8F, 0xAB, 0xC7, 0xE3, 0xFF},
+                    gp->buttonTextureS,
+                    gp->renderer);
+    }
+}
+
+/** \brief 事件处理 */
+static void gpEvent(guiPlay *gm, SDL_Event *event)
+{
+    // 界面被ban
+    if (CHECKFLAG(gm->flag, guiPlayEnum_ban))
+        return;
+
+    // 处理按钮事件
+    if (!CHECKFLAG(gm->flag, guiPlayEnum_button_ban))
+    {
+        // 被按下
+        if (gpEventButton(gm, event) == 1)
+        {
+            // 选择图片
+            char path[PATH_MAX] = {0};
+            if (selectImageFile(path, PATH_MAX))
+            {
+                // 读取图片
+                SDL_Surface *surface = IMG_Load(path);
+                if (surface)
+                {
+                    gmAdd(gm->msg, "读取图片成功", guiMsgEnum_Success);
+
+                    // 释放原来的图片
+                    if (gm->imageTexture)
+                        SDL_DestroyTexture(gm->imageTexture);
+
+                    // 释放原来的人物信息
+                    freeList(gm->figure, (void (*)(void *))freePersonal);
+
+                    // 创建新的图片的纹理
+                    gm->imageTexture = SDL_CreateTextureFromSurface(gm->renderer, surface);
+
+                    // 设置图片位置, 大小及其缩放
+                    gm->imageW = surface->w;
+                    gm->imageH = surface->h;
+                    resizeImage(&(SDL_Rect){0, 0, WINDOW_PLAY_DEFAULT_WIDTH, WINDOW_PLAY_DEFAULT_HEIGHT}, &gm->imageRect, gm->imageW, gm->imageH);
+                    gm->scale1 = gm->imageRect.w / gm->imageW;
+                    gm->scale2 = 1.0f;
+
+                    // 禁用按钮同时启用等待动画
+                    SETFLAG(gm->flag, guiPlayEnum_button_ban);
+                    SETFLAG(gm->flag, guiPlayEnum_watt_init);
+
+                    // 启用线程去获取识别人脸并获取人物信息
+                    faceThreadParam *param = (faceThreadParam *)malloc(sizeof(faceThreadParam));
+                    strcpy(param->PATH, path);
+                    param->msg = gm->msg;
+                    param->figure = gm->figure;
+
+                    setThread(true);
+                    pthread_create(&Global.thread, NULL, (void *(*)(void *))getFaceThread, param);
+
+                    // 释放图片
+                    SDL_FreeSurface(surface);
+                }
+            }
+        }
+    }
+
+    // 处理图片事件
+    if (!CHECKFLAG(gm->flag, guiPlayEnum_image_ban))
+        gpEventImage(gm, event);
+}
+
+/** \brief 渲染界面 */
+static void gpRender(guiPlay *gm)
+{
+    if (CHECKFLAG(gm->flag, guiPlayEnum_ban))
+        return;
+
+    // 渲染图片
+    if (!CHECKFLAG(gm->flag, guiPlayEnum_image_ban))
+        gpRenderImage(gm);
+
+    // 渲染按钮
+    if (!CHECKFLAG(gm->flag, guiPlayEnum_button_ban))
+        gpRenderButton(gm);
+
+    // 渲染等待动画
+    else
+        gpRenderWatt(gm);
+}
+
+/** \brief gui_play界面 */
+void gui_play()
+{
+    // 创建窗口
+    SDL_Window *window = SDL_CreateWindow("encFace", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_PLAY_DEFAULT_WIDTH, WINDOW_PLAY_DEFAULT_HEIGHT, SDL_WINDOW_SHOWN);
+    // 创建渲染器
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+    // 人物信息
+    list figure = {0};
+    initList(&figure);
+
+    // 消息队列
+    guiMsg msg = {0};
+    gmInit(&msg,
+           Global.font,
+           NULL, NULL, NULL, NULL, NULL, NULL,
+           (SDL_Rect){20, WINDOW_PLAY_DEFAULT_HEIGHT - 30 - 20, 250, 30},
+           0.7,
+           10,
+           3000,
+           1000,
+           -1,
+           renderer);
+
+    // guiPlay
+    guiPlay gp = {0};
+    gpInit(&gp, &figure, &msg, renderer);
+
+    // 控制帧率
+    Uint64 frameStart = 0, frameTime = 0;
+
+    // 退出标志
+    int quit = 1;
+    while (quit)
+    {
         // 设置帧开始时间
         frameStart = SDL_GetTicks64();
 
-        // 事件处理
+        SDL_Event event;
         while (SDL_PollEvent(&event))
         {
             switch (event.type)
             {
             case SDL_QUIT:
-                Global.quit = 0;
-                break;
-
-            case SDL_WINDOWEVENT: // 窗口事件
-                switch (event.window.event)
-                {
-                case SDL_WINDOWEVENT_SIZE_CHANGED: // 窗口大小变化事件
-                    // 更新窗口大小
-                    windowRect.w = event.window.data1;
-                    windowRect.h = event.window.data2;
-
-                    // 重新按钮区域
-                    resetButton(&buttonPoint, &buttonRadius, &buttonMsgWRect, &buttonMsgHRect, &windowRect);
-                    break;
-                case SDL_WINDOWEVENT_MOVED: // 窗口位置改变事件
-                    // 更新窗口位置
-                    windowRect.x = event.window.data1;
-                    windowRect.y = event.window.data2;
-                    break;
-                }
-                break;
-
-            case SDL_MOUSEMOTION: // 移动事件
-                // 更新鼠标位置信息
-                mouse.x = (float)event.motion.x;
-                mouse.y = (float)event.motion.y;
-
-                // 是否在按钮区域内
-                bool inButton = checkPointInCircle(mouse, buttonPoint.x, buttonPoint.y, buttonRadius);
-
-                // 当前为按下状态移动
-                if (event.motion.state == SDL_BUTTON_LMASK)
-                {
-                    // 按下图片移动
-                    if (CHECK_FLAG(image_enter))
-                    {
-                        // 移动图片
-                        surfaceRect.x += event.motion.xrel;
-                        surfaceRect.y += event.motion.yrel;
-
-                        // 重新计算图片渲染数据
-                        getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO, NULL);
-                    }
-
-                    // 按下按钮移动
-                    else if (CHECK_FLAG(button_enter))
-                    {
-                    }
-
-                    // 按下空白处移动
-                    else
-                    {
-                    }
-                }
-                // 当前未按下状态移动
-                else
-                {
-                    // 如果不是等待状态需要处理按钮动画
-                    if (!CHECK_FLAG(button_Wait))
-                    {
-                        // 进入按钮区域
-                        if (inButton == true &&
-                            !CHECK_FLAG(button_In))
-                            // 设置选择动画
-                            SET_FLAG(button_Select);
-
-                        // 离开按钮区域
-                        else if (inButton == false &&
-                                 CHECK_FLAG(button_In))
-                            // 设置未选择动画
-                            SET_FLAG(button_Not_Select);
-                    }
-                }
-
-                // 设置按钮标识位
-                inButton == true ? SET_FLAG(button_In) : CLEAR_FLAG(button_In);
-                break;
-
-            case SDL_MOUSEBUTTONDOWN:                       // 按下事件
-                if (event.button.button == SDL_BUTTON_LEFT) // 左键按下
-                {
-                    // 在按钮上按下
-                    if (CHECK_FLAG(button_In) && !CHECK_FLAG(button_Wait))
-                    {
-                        // 设置按钮按下标志
-                        SET_FLAG(button_enter);
-
-                        // 设置按钮按下动画
-                        SET_FLAG(button_Click);
-                    }
-
-                    // 在图片上按下
-                    else if (SDL_PointInFRect(&mouse, &surfaceRect) == SDL_TRUE)
-                    {
-                        // 设置图片按下标识
-                        SET_FLAG(image_enter);
-                    }
-
-                    // 空白处按下
-                    else
-                    {
-                    }
-                }
-                break;
-
-            case SDL_MOUSEBUTTONUP:                         // 弹起事件
-                if (event.button.button == SDL_BUTTON_LEFT) // 左键弹起
-                {
-                    // 按钮状态下的弹起
-                    if (CHECK_FLAG(button_enter))
-                    {
-                        // 在按钮上弹起
-                        if (CHECK_FLAG(button_In))
-                        {
-                            // 处理数据
-                            // 如果上一个线程结束并且成功读取图片
-                            if (!CHECK_FLAG(button_Wait) && getThread() == false && choiceImage(&windowRect, renderer, &surface, &texture, &surfaceRect, &scale, &scale2, &face, &faceSurface, &faceTexture) == true)
-                            {
-                                // 触发等待动画
-                                SET_FLAG(button_Wait);
-
-                                // 更新渲染数据
-                                getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO, NULL);
-                            }
-                            // 选择失败
-                            else if (!CHECK_FLAG(button_Wait))
-                            {
-                                // 未选择动画
-                                if (checkPointInCircle(mouse, buttonPoint.x, buttonPoint.y, buttonRadius) == false)
-                                    SET_FLAG(button_Not_Click);
-                            }
-                        }
-
-                        // 不在按钮上弹起
-                        else
-                        {
-                            if (!CHECK_FLAG(button_Wait))
-                                // 设置松开动画
-                                SET_FLAG(button_Not_Click);
-                        }
-
-                        // 设置按钮状态标志
-                        CLEAR_FLAG(button_enter);
-                    }
-
-                    // 图片状态下的弹起
-                    else if (CHECK_FLAG(image_enter))
-                    {
-                        CLEAR_FLAG(image_enter);
-
-                        // 如果在按钮区域，则触发按钮选择动画
-                        if (!CHECK_FLAG(button_Wait) && checkPointInCircle(mouse, buttonPoint.x, buttonPoint.y, buttonRadius) == true)
-                            SET_FLAG(button_Select);
-                    }
-                }
-                break;
-            case SDL_MOUSEWHEEL:                                             // 滚轮事件
-                float scale_tmp = 0.20f * event.wheel.y;                     // 缩放比例
-                if (scale_tmp + scale2 > 0.1f && scale_tmp + scale2 < 15.0f) // 缩放比例限制
-                {
-                    float w = surfaceRect.w;
-                    float h = surfaceRect.h;
-
-                    // 设置缩放比例
-                    scale2 += scale_tmp;
-
-                    // 重新设置图片区域
-                    surfaceRect.w = surface->w * scale * scale2;
-                    surfaceRect.h = surface->h * scale * scale2;
-
-                    // 从鼠标位置向周围缩放
-                    surfaceRect.x -= (((float)mouse.x - surfaceRect.x) / w) * (surfaceRect.w - w);
-                    surfaceRect.y -= (((float)mouse.y - surfaceRect.y) / h) * (surfaceRect.h - h);
-                }
-
-                // 更新渲染数据
-                getRoundedBorder(NULL, surface->w, surface->h, &surfaceRect, 0.02f, &imageEBO, NULL);
-
+                quit = 0;
                 break;
             }
+
+            // 事件处理
+            gpEvent(&gp, &event);
         }
 
-        // 清空Renderer
-        SDL_SetRenderDrawColor(renderer, backGroundColor.r, backGroundColor.g, backGroundColor.b, backGroundColor.a);
+        // 清空界面
+        SDL_SetRenderDrawColor(renderer, 0xDD, 0xDD, 0xDD, 255);
         SDL_RenderClear(renderer);
 
-        // 绘制照片
-        drawFromEBO(renderer, texture, imageEBO);
+        // 渲染基础界面
+        gpRender(&gp);
 
-        // 渲染选择框
-        if (getThread() == false && !CHECK_FLAG(button_Wait))
-        {
-            list *node = face;
-            list *nodeT = faceTexture;
-            list *nodeS = faceSurface;
-            while (node)
-            {
-                // 选择框的实际位置
-                SDL_FRect rect = {
-                    .x = surfaceRect.x + ((vector *)node->data)->rect.x * scale * scale2,
-                    .y = surfaceRect.y + ((vector *)node->data)->rect.y * scale * scale2,
-                    .w = ((vector *)node->data)->rect.w * scale * scale2,
-                    .h = ((vector *)node->data)->rect.h * scale * scale2};
+        // 渲染消息
+        gmRender(&msg);
 
-                // 根据人物是否存在设置对应的颜色
-                if (((vector *)node->data)->flag == HV)
-                    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-                else
-                    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-
-                // 渲染选择框
-                SDL_RenderDrawRectF(renderer, &rect);
-
-                // 如果鼠标位置在选择框内，则渲染文本框
-                if (SDL_PointInFRect(&mouse, &rect))
-                {
-                    // 设置文本框的位置
-                    rect.x += rect.w + 5;
-                    rect.w *= 1.5f;
-                    if (((vector *)node->data)->flag == HV)
-                        rect.w *= 1.5f;
-                    else
-                        rect.y += rect.h / 3.0f;
-                    rect.h = (rect.w / (float)(((SDL_Surface *)nodeS->data)->w)) * (float)((SDL_Surface *)nodeS->data)->h;
-
-                    // 渲染
-                    SDL_RenderCopyF(renderer, (SDL_Texture *)nodeT->data, NULL, &rect);
-                }
-
-                // 下一个
-                node = node->next;
-                nodeT = nodeT->next;
-                nodeS = nodeS->next;
-            }
-        }
-
-        // 按钮选中动画
-        if (CHECK_FLAG(button_Select))
-        {
-            //  绘制初始化按钮选中动画
-            if (!CHECK_FLAG(button_Select_Start))
-            {
-                // 标志为已初始化
-                SET_FLAG(button_Select_Start);
-
-                // 更新时间
-                timer1 = SDL_GetTicks64();
-            }
-
-            // 获取间隔时间
-            timer2 = SDL_GetTicks64() - timer1;
-
-            // 绘制结束
-            if (timer2 > 100)
-            {
-                CLEAR_FLAG(button_Select);
-                CLEAR_FLAG(button_Select_Start);
-
-                // 更新按钮大小
-                buttonRadius = getButtonRadius(&windowRect) * 1.2f;
-                setCross(&buttonMsgWRect, &buttonMsgHRect, &buttonPoint, buttonRadius);
-            }
-            else
-            {
-                // 更新按钮大小
-                buttonRadius = getButtonRadius(&windowRect) * (1.0f + 0.2f * timer2 / 100.0f);
-                setCross(&buttonMsgWRect, &buttonMsgHRect, &buttonPoint, buttonRadius);
-            }
-
-            // 渲染按钮
-            drawButton(1);
-        }
-        // 按钮离开动画
-        else if (CHECK_FLAG(button_Not_Select))
-        {
-            //  绘制初始化按钮离开动画
-            if (!CHECK_FLAG(button_Not_Select_Start))
-            {
-                // 标志为已初始化
-                SET_FLAG(button_Not_Select_Start);
-
-                // 更新时间
-                timer1 = SDL_GetTicks64();
-            }
-
-            // 获取间隔时间
-            timer2 = SDL_GetTicks64() - timer1;
-
-            // 绘制结束
-            if (timer2 > 100)
-            {
-                CLEAR_FLAG(button_Not_Select);
-                CLEAR_FLAG(button_Not_Select_Start);
-
-                // 更新按钮大小
-                buttonRadius = getButtonRadius(&windowRect);
-                setCross(&buttonMsgWRect, &buttonMsgHRect, &buttonPoint, buttonRadius);
-
-                // 渲染按钮
-                drawButton(0);
-            }
-            else
-            {
-                // 更新按钮大小
-                buttonRadius = getButtonRadius(&windowRect) * (1.0f + 0.2f * (100.0f - timer2) / 100.0f);
-                setCross(&buttonMsgWRect, &buttonMsgHRect, &buttonPoint, buttonRadius);
-
-                // 渲染按钮
-                drawButton(1);
-            }
-        }
-        // 按钮点击动画
-        else if (CHECK_FLAG(button_Click))
-        {
-            //  绘制初始化
-            if (!CHECK_FLAG(button_Click_Start))
-            {
-                // 标志为已初始化
-                SET_FLAG(button_Click_Start);
-
-                // 更新时间
-                timer1 = SDL_GetTicks64();
-            }
-
-            // 获取间隔时间
-            timer2 = SDL_GetTicks64() - timer1;
-
-            // 绘制结束
-            if (timer2 > 100)
-            {
-                CLEAR_FLAG(button_Click);
-                CLEAR_FLAG(button_Click_Start);
-
-                // 绘制结束图案
-                drawButton(2);
-            }
-            else
-            {
-                // 绘制动画
-                drawButton(1);
-
-                drawCircle(renderer, buttonPoint.x, buttonPoint.y, buttonRadius * timer2 / 100.0f, buttonColor[2]);
-                SDL_SetRenderDrawColor(renderer, buttonMsgColor[2].r, buttonMsgColor[2].g, buttonMsgColor[2].b, buttonMsgColor[2].a);
-                SDL_RenderFillRectF(renderer, &buttonMsgWRect);
-                SDL_RenderFillRectF(renderer, &buttonMsgHRect);
-            }
-        }
-        // 按钮松开动画
-        else if (CHECK_FLAG(button_Not_Click))
-        {
-            //  绘制初始化
-            if (!CHECK_FLAG(button_Not_Click_Start))
-            {
-                // 更新时间
-                timer1 = SDL_GetTicks64();
-
-                // 标志为已初始化
-                SET_FLAG(button_Not_Click_Start);
-            }
-
-            // 获取间隔时间
-            timer2 = SDL_GetTicks64() - timer1;
-
-            // 绘制结束
-            if (timer2 > 100)
-            {
-                CLEAR_FLAG(button_Not_Click);
-                CLEAR_FLAG(button_Not_Click_Start);
-
-                // 更新按钮大小
-                buttonRadius = getButtonRadius(&windowRect);
-                setCross(&buttonMsgWRect, &buttonMsgHRect, &buttonPoint, buttonRadius);
-
-                // 渲染按钮
-                drawButton(0);
-            }
-            else
-            {
-                // 更新按钮大小
-                buttonRadius = getButtonRadius(&windowRect) * (1.0f + 0.2f * (100.0f - timer2) / 100.0f);
-                setCross(&buttonMsgWRect, &buttonMsgHRect, &buttonPoint, buttonRadius);
-
-                // 渲染按钮
-                drawButton(2);
-            }
-        }
-        // 按钮等待动画
-        else if (CHECK_FLAG(button_Wait))
-        {
-            // 等待状态
-            if (getThread() == true)
-            {
-                //  绘制初始化
-                if (!CHECK_FLAG(button_Wait_Start))
-                {
-                    // 标志为已初始化
-                    SET_FLAG(button_Wait_Start);
-
-                    // 更新时间
-                    timer1 = SDL_GetTicks64();
-                }
-
-                timer2 = SDL_GetTicks64() - timer1;
-
-                // 八个小球分开
-                if (timer2 < 100)
-                {
-
-                    drawCircleN(renderer, buttonPoint.x, buttonPoint.y,
-                                buttonRadius * 1.4f * (float)timer2 / 100.0f,
-                                buttonRadius * (1.0f - timer2 / 160.0f),
-                                wattColor,
-                                timer2 / 350.0f,
-                                8);
-                }
-                // 转圈圈
-                else
-                {
-                    drawCircleN(renderer, buttonPoint.x, buttonPoint.y,
-                                buttonRadius * 1.4f,
-                                buttonRadius * (1.0f - 0.625),
-                                wattColor,
-                                timer2 / 400.0f,
-                                8);
-                }
-            }
-            // 等待结束
-            else
-            {
-                if (!CHECK_FLAG(button_Not_Wait_Start))
-                {
-                    // 渲染用户信息
-                    renderInfo2Surface(renderer, face, &faceSurface, &faceTexture);
-
-                    // 标志为已初始化
-                    SET_FLAG(button_Not_Wait_Start);
-
-                    // 更新时间
-                    timer1 = SDL_GetTicks64();
-                }
-
-                timer2 = SDL_GetTicks64() - timer1;
-
-                if (timer2 > 100)
-                {
-                    CLEAR_FLAG(button_Wait);
-                    CLEAR_FLAG(button_Wait_Start);
-                    CLEAR_FLAG(button_Not_Wait_Start);
-
-                    // 重置按钮
-                    resetButton(&buttonPoint, &buttonRadius, &buttonMsgWRect, &buttonMsgHRect, &windowRect);
-                    if (CHECK_FLAG(button_In))
-                    {
-                        buttonRadius *= 1.2f;
-                        drawCircle(renderer, buttonPoint.x, buttonPoint.y, buttonRadius, buttonColor[1]);
-                    }
-                    else
-                        drawCircle(renderer, buttonPoint.x, buttonPoint.y, buttonRadius, buttonColor[0]);
-                }
-                else
-                {
-                    drawCircleN(renderer, buttonPoint.x, buttonPoint.y,
-                                buttonRadius * 1.4f * (1.0f - (float)timer2 / 100.0f),
-                                buttonRadius * (0.375 + timer2 / 160.0f),
-                                wattColor,
-                                timer2 / 400.0f,
-                                8);
-                }
-            }
-        }
-        // 普通情况
-        else
-        {
-            // 按钮的按下状态
-            if (CHECK_FLAG(button_enter))
-            {
-                drawButton(2);
-            }
-            // 未按下状态
-            else
-            {
-                // 是在按钮区域内并且不是图像的按下状态
-                if (!CHECK_FLAG(image_enter) && CHECK_FLAG(button_In))
-                {
-                    drawButton(1);
-                }
-                else
-                {
-                    drawButton(0);
-                }
-            }
-        }
-
-        // 更新Renderer
+        // 更新界面
         SDL_RenderPresent(renderer);
 
         // 控制刷新率
@@ -685,206 +593,50 @@ void gui_play()
         if (frameTime < FPS_MS)
             SDL_Delay(FPS_MS - frameTime);
     }
-error:
-
-    // 释放渲染数据
-    freeEBO(&imageEBO);
-
-    // 杀死线程
-    if (getThread() == true)
-        pthread_kill(Global.thread, SIGTERM);
 
     // 释放资源
-    listFree(&face, (void (*)(void *))freeVector);
-    listFree(&faceSurface, (void (*)(void *))SDL_FreeSurface);
-    listFree(&faceTexture, (void (*)(void *))SDL_DestroyTexture);
-    SDL_FreeSurface(surface);
-    SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 }
 
-bool renderInfo2Surface(SDL_Renderer *renderer, list *face, list **faceSurface, list **faceTexture)
+/** \brief 获取数据线程 */
+void getFaceThread(faceThreadParam *param)
 {
-    char text[256] = {0};
-    list *tmp = NULL;
+    faceThreadParam msg = {0};
+    memcpy(&msg, param, sizeof(faceThreadParam));
+    free(param);
 
-    // 设置文本颜色
-    SDL_Color colorHV = {0, 255, 0, 255}; // 人物存在
-    SDL_Color colorNO = {255, 0, 0, 255}; // 人物不存在
-
-    // Surface
-    SDL_Surface *surface1 = NULL;
-    SDL_Surface *surface2 = NULL;
-    SDL_Surface *surface3 = NULL;
-    SDL_Surface *surface = NULL;
-
-    // 检查参数
-    if (!renderer || !face || !faceSurface || !faceTexture)
-        return false;
-
-    // 初始化
-    listFree(faceSurface, (void (*)(void *))SDL_FreeSurface);
-    listFree(faceTexture, (void (*)(void *))SDL_DestroyTexture);
-
-    // 渲染名片到tmp链表
-    list *node = face;
-    while (node)
+    // 从facenet服务器获取人脸特征向量
+    if (getFaceVector(msg.PATH, msg.figure) == false)
     {
-        if (((vector *)node->data)->flag == HV) // 人物存在
+        gmAdd(msg.msg, "获取人脸特征向量失败", guiMsgEnum_Error);
+        setThread(false);
+        return;
+    }
+
+    // 从远程服务器获取人物消息
+    list *node = msg.figure->fd;
+    while(node != msg.figure)
+    {
+        personal *p = (personal *)node->data;
+        if (getFaceInfo(p) == false)
         {
-            // 渲染人物姓名
-            snprintf(text, 256, "姓名:%s", ((vector *)node->data)->info.name);
-            surface1 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
-
-            // 渲染人物年龄
-            snprintf(text, 256, "年龄:%d", ((vector *)node->data)->info.age);
-            surface2 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
-
-            // 渲染人物性别
-            switch (((vector *)node->data)->info.sex)
-            {
-            case MAN: // 男性
-                strcpy(text, "性别:男性");
-                break;
-            case WOM: // 女性
-                strcpy(text, "性别:女性");
-                break;
-            case SEX: // 未知
-            default:
-                strcpy(text, "性别:未知");
-                break;
-            }
-            surface3 = TTF_RenderUTF8_Blended(Global.font, text, colorHV);
-
-            // 创建人物信息框
-            surface = SDL_CreateRGBSurfaceWithFormat(0, MAX_OF_THREE(surface1->w, surface2->w, surface3->w), surface1->h + surface2->h + surface3->h + 20, 32, SDL_PIXELFORMAT_RGBA32);
-
-            // 用浅透明的淡蓝色去填充背景
-            SDL_FillRect(surface, NULL, SDL_MapRGBA(surface->format, 128, 128, 255, 64));
-
-            // 将surface1~3渲染到surface
-            SDL_Rect rect = {0};
-            SDL_BlitSurface(surface1, NULL, surface, NULL);
-            rect.x = 0;
-            rect.y = surface1->h + 10;
-            rect.w = surface2->w;
-            rect.h = surface2->h;
-            SDL_BlitSurface(surface2, NULL, surface, &rect);
-            rect.x = 0;
-            rect.y = surface1->h + surface2->h + 20;
-            rect.w = surface3->w;
-            rect.h = surface3->h;
-            SDL_BlitSurface(surface3, NULL, surface, &rect);
-
-            // 添加到链表
-            addData(&tmp, surface, 0, false);
-
-            // 释放资源
-            SDL_FreeSurface(surface1);
-            SDL_FreeSurface(surface2);
-            SDL_FreeSurface(surface3);
+            gmAdd(msg.msg, "获取人物信息失败", guiMsgEnum_Error);
+            setThread(false);
+            return;
         }
-        else // 人物不存在
-        {
-            // 人物要显示的信息信息
-            addData(&tmp, TTF_RenderUTF8_Blended(Global.font, "no info", colorNO), 0, false);
-        }
-
-        node = node->next;
+        node = node->fd;
     }
 
-    // 将tmp链表的surface转换成texture
-    node = tmp;
-    while (node)
-    {
-        addData(faceTexture, SDL_CreateTextureFromSurface(renderer, (SDL_Surface *)node->data), 0, false);
-        node = node->next;
-    }
 
-    // 将tmp链表的surface放入surface ( 这一步用于保持正方向放入链表 )
-    while (tmp)
-    {
-        void *data = NULL;
-        if (getData(&tmp, &data) == false)
-            break;
-        addData(faceSurface, data, 0, false);
-    }
 
-    return true;
-}
-
-bool choiceImage(
-    const SDL_Rect *windowRect,
-    SDL_Renderer *renderer,
-    SDL_Surface **surface, SDL_Texture **texture,
-    SDL_FRect *surfaceRect, float *scale, float *scale2,
-    list **face, list **faceSurface, list **faceTexture)
-{
-    int ret = 0;
-    SDL_Surface *tmpSurface = NULL;
-
-    // 初始化
-    memset(Global.path, 0, sizeof(Global.path));
-
-    // 选择图片
-    ret = selectImageFile(Global.path, sizeof(Global.path));
-    CHECK(ret == true, "未选择图片\n");
-
-    // 清除原有数据
-    SDL_FreeSurface(*surface);
-    SDL_DestroyTexture(*texture);
-
-    // 读取图片Surface
-    tmpSurface = IMG_Load_RW(SDL_RWFromFile(Global.path, "rb"), 1);
-    CHECK(tmpSurface, "无法读取图片文件 : %s\n", IMG_GetError());
-
-    // 转化图片格式到四通道
-    *surface = SDL_ConvertSurfaceFormat(tmpSurface, SDL_PIXELFORMAT_RGBA32, 0);
-    CHECK(*surface, "转换图片格式失败 : %s\n", SDL_GetError());
-    SDL_FreeSurface(tmpSurface);
-
-    // 读取图片Texture
-    *texture = SDL_CreateTextureFromSurface(renderer, *surface);
-    CHECK(*texture, "创建图片纹理失败 : %s\n", SDL_GetError());
-
-    // 调整图片大小和缩放
-    resizeImage(windowRect, surfaceRect, (*surface)->w, (*surface)->h);
-    *scale = surfaceRect->w / (*surface)->w;
-    *scale2 = 1.0f;
-
-    // 创建线程
-    setThread(true);
-    ret = pthread_create(&Global.thread, NULL, getFace, face);
-    CHECK(ret == 0, "创建线程失败\n");
-
-    return true;
-
-error:
-    if (tmpSurface)
-        SDL_FreeSurface(tmpSurface);
-    return false;
-}
-
-void *getFace(void *arg)
-{
-    bool ret = false;
-
-    // 获取人脸特征向量
-    ret = getFaceVector(Global.path, (list **)arg);
-    CHECK(ret == true, "获取人脸特征向量失败\n");
-
-    // 如果检测到人脸
-    if (0 < listLen(*(list **)arg))
-    {
-        // 获取人脸信息
-        ret = getFaceInfo(*(list **)arg);
-        CHECK(ret == true, "获取人脸信息失败\n");
-    }
-
-    DEB(else { DEBUG("未检测到人脸\n"); });
-
-error:
+    gmAdd(msg.msg, "正在获取人脸信息成功", guiMsgEnum_Success);
     setThread(false);
-    return NULL;
+    return;
+}
+
+/** \brief 渲染用户数据 */
+void renderUserData(personal *p, SDL_Renderer *renderer)
+{
+
 }
