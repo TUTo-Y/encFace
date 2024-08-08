@@ -63,9 +63,11 @@ struct _Global
 
     TTF_Font *font; // 字体
 
-    SM2_KEY SM2server;  // sm2服务器公钥
-    SM2_KEY SM2user;    // sm2用户密钥对
-    ZUC_STATE ZUCstate; // ZUC密钥
+    SM2_KEY SM2server;             // sm2服务器公钥
+    SM2_KEY SM2user;               // sm2用户密钥对
+    ZUC_STATE ZUCstate;            // ZUC密钥
+    uint8_t ZUC_key[ZUC_KEY_SIZE]; // ZUC密钥
+    uint8_t ZUC_iv[ZUC_IV_SIZE];   // ZUC向量
 
     pthread_t thread;     // 线程
     bool thread_status;   // 线程状态, 线程是否存在
@@ -76,5 +78,4 @@ struct _Global
 extern struct _Global Global;
 
 void freePersonal(personal *p);
-
 #endif

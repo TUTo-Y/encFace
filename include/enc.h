@@ -16,17 +16,17 @@
 /**
  * \brief 随即生成ZUC密钥和初始化向量
  */
-void zucKeyVi(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_IV_SIZE]);
+void zucKeyIv(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_IV_SIZE]);
 
-/**
- * \brief ZUC加密解密函数
- * \param in 输入数据
- * \param out 输出数据
- * \param size 数据大小
- * \param state ZUC状态
- * \return 成功返回true, 失败返回false
- */
-bool zucEnc(const byte *in, byte *out, size_t size, ZUC_STATE *state);
+// /**
+//  * \brief ZUC加密解密函数
+//  * \param in 输入数据
+//  * \param out 输出数据
+//  * \param size 数据大小
+//  * \param state ZUC状态
+//  * \return 成功返回true, 失败返回false
+//  */
+// bool zucEnc(const byte *in, byte *out, size_t size, ZUC_STATE *state);
 
 /**
  * \brief 获取sm2公钥到pem

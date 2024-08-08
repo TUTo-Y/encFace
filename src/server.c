@@ -70,8 +70,10 @@ static int update(int client_sockfd)
     CHECK(ret != -1, "接收人物信息失败\n");
 
     // 解密
-    zucEnc((byte *)&info, (byte *)&info, sizeof(info), &state);
-    zucEnc((byte *)&info, (byte *)&info, sizeof(info), &zstate);
+    zuc_encrypt(&state, (byte *)&info, sizeof(info), (byte *)&info);
+    zuc_encrypt(&zstate, (byte *)&info, sizeof(info), (byte *)&info);
+    // zucEnc((byte *)&info, (byte *)&info, sizeof(info), &state);
+    // zucEnc((byte *)&info, (byte *)&info, sizeof(info), &zstate);
 
     DEBUG("服务器接受到上传数据:\n");
     DEBUG("姓名 : %s\n", info.name);
@@ -115,7 +117,8 @@ static int face_msg(int client_sockfd)
     ret = recv(client_sockfd, data, size, MSG_WAITALL);
     free(data);
 
-    size_t flag = rand() % 2;
+    // size_t flag = rand() % 2;
+    size_t flag = 0;
     // 发送人物是否存在标识
     ret = send(client_sockfd, &flag, sizeof(size_t), 0);
     CHECK(ret != -1, "发送人物是否存在标识失败\n");
@@ -127,7 +130,7 @@ static int face_msg(int client_sockfd)
         uint8_t key[16];
         uint8_t iv[16];
 
-        zucKeyVi(key, iv);
+        zucKeyIv(key, iv);
         zuc_init(&state, key, iv);
 
         // 加密ZUC密钥
@@ -182,8 +185,12 @@ static int face_msg(int client_sockfd)
         strcpy(info.major, "信息安全2303");
         strcpy(info.college, "网安");
         // 加密信息
-        zucEnc((byte *)&info, (byte *)&info, sizeof(info), &zstate);
-        zucEnc((byte *)&info, (byte *)&info, sizeof(info), &state);
+
+    zuc_encrypt(&zstate, (byte *)&info, sizeof(info), (byte *)&info);
+    zuc_encrypt(&state, (byte *)&info, sizeof(info), (byte *)&info);
+
+        // zucEnc((byte *)&info, (byte *)&info, sizeof(info), &zstate);
+        // zucEnc((byte *)&info, (byte *)&info, sizeof(info), &state);
 
         // 发送信息
         ret = send(client_sockfd, &info, sizeof(info), 0);

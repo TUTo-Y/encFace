@@ -158,7 +158,7 @@ int guiEdit(SDL_Renderer *renderer, SDL_Surface *backSurface, guiMsg *msg, perso
         gbRender(&button[1]);
         SDL_SetRenderTarget(renderer, NULL);
 
-        int tiem = SDL_GetTicks();
+        int time = SDL_GetTicks();
         for (int i = 0; i < 255; i++)
         {
 
@@ -171,8 +171,10 @@ int guiEdit(SDL_Renderer *renderer, SDL_Surface *backSurface, guiMsg *msg, perso
             gmRender(msg);
             SDL_RenderPresent(renderer);
 
-            if(i % 2)
-                SDL_Delay(1);
+            int all = i;
+            int now = SDL_GetTicks() - time;
+            if(now<all)
+            SDL_Delay(all - now);
         }
 
         SDL_DestroyTexture(Texture);
@@ -267,7 +269,7 @@ int guiEdit(SDL_Renderer *renderer, SDL_Surface *backSurface, guiMsg *msg, perso
         gbRender(&button[1]);
         SDL_SetRenderTarget(renderer, NULL);
 
-        int tiem = SDL_GetTicks();
+        int time = SDL_GetTicks();
         for (int i = 0; i < 255; i++)
         {
 
@@ -279,8 +281,11 @@ int guiEdit(SDL_Renderer *renderer, SDL_Surface *backSurface, guiMsg *msg, perso
             SDL_RenderCopy(renderer, Texture, NULL, NULL);
             gmRender(msg);
             SDL_RenderPresent(renderer);
-            if(i % 2)
-            SDL_Delay(1);
+            
+            int all = i;
+            int now = SDL_GetTicks() - time;
+            if(now<all)
+            SDL_Delay(all - now);
         }
 
         SDL_DestroyTexture(Texture);

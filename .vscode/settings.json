@@ -27,6 +27,8 @@
         "typeindex": "c",
         "typeinfo": "c",
         "text_encoding": "c",
-        "numbers": "c"
+        "numbers": "c",
+        "enc.h": "c",
+        "__node_handle": "c"
     }
 }

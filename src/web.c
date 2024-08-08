@@ -144,7 +144,7 @@ bool getFaceVector(const char *file, list *l)
     size_t size = 0;
     personal p = {0};
 
-    if(file == NULL || l == NULL)
+    if (file == NULL || l == NULL)
         goto error;
 
     // 向facenet服务器发送请求(size_t)
@@ -190,6 +190,8 @@ bool getFaceVector(const char *file, list *l)
         // 创建特征向量空间
         p.vector = (data *)Malloc(size);
 
+        DEBUG("BGV加密后大小为：%d\n", p.vector->size);
+
         // 返回特征向量数据(byte*)
         recv(Global.sock_f, (char *)p.vector->data, size, MSG_WAITALL);
 
@@ -212,7 +214,7 @@ bool getFaceInfo(personal *p)
     int ret;
     uint8_t key[ZUC_KEY_SIZE] = {0};
     uint8_t iv[ZUC_IV_SIZE] = {0};
-    ZUC_STATE state;
+    ZUC_STATE state = {0};
 
     uint8_t textCipher[SM2_MAX_CIPHERTEXT_SIZE] = {0}; // sm2密文
     size_t textCipherSize = 0;                         // sm2密文大小
@@ -258,16 +260,15 @@ bool getFaceInfo(personal *p)
     memcpy(key, textPlaint, ZUC_KEY_SIZE);
     memcpy(iv, textPlaint + ZUC_KEY_SIZE, ZUC_IV_SIZE);
 
-    // 生成ZUC密钥流
-    zuc_init(&state, key, iv);
-
     // 接受服务端传送来的人物数据(char*)
     ret = recv(Global.sock_s, (char *)&p->info, sizeof(p->info), MSG_WAITALL);
     CHECK(ret != INADDR_NONE, "从远程服务器接收人物数据错误: %s\n", strerror(errno));
 
     // 解密人物数据
-    zucEnc((byte *)&p->info, (byte *)&p->info, sizeof(p->info), &state);
-    zucEnc((byte *)&p->info, (byte *)&p->info, sizeof(p->info), &Global.ZUCstate);
+    zuc_init(&state, key, iv);
+    zuc_encrypt(&state, (byte *)&p->info, sizeof(p->info), (byte *)&p->info);
+    zuc_init(&Global.ZUCstate, Global.ZUC_key, Global.ZUC_iv);
+    zuc_encrypt(&Global.ZUCstate, (byte *)&p->info, sizeof(p->info), (byte *)&p->info);
 
     DEBUG("接受到人物姓名: %s\n", p->info.name);
 
@@ -293,7 +294,7 @@ bool uploadFaceInfo(const personal *p)
     uint8_t textPlaint[SM2_MAX_PLAINTEXT_SIZE] = {0};  // sm2明文
     size_t textPlaintSize = 0;                         // sm2明文大小
 
-    if(p == NULL)
+    if (p == NULL)
         goto error;
 
     // 发送请求
@@ -310,8 +311,7 @@ bool uploadFaceInfo(const personal *p)
     CHECK(ret != INADDR_NONE, "向远程服务器发送特征向量错误: %s\n", strerror(errno));
 
     // 生成ZUC密钥
-    zucKeyVi(key, iv);
-    zuc_init(&state, key, iv);
+    zucKeyIv(key, iv);
 
     // sm2加密ZUC密钥
     memcpy(textPlaint, key, ZUC_KEY_SIZE);
@@ -331,8 +331,10 @@ bool uploadFaceInfo(const personal *p)
     // 使用ZUC密钥加密人物数据
     basicMsg tmp = {0};
     memcpy(&tmp, &p->info, sizeof(p->info));
-    // zucEnc((byte *)&tmp, (byte *)&tmp, sizeof(tmp), &Global.ZUCstate);
-    zucEnc((byte *)&tmp, (byte *)&tmp, sizeof(tmp), &state);
+    zuc_init(&state, key, iv);
+    zuc_encrypt(&state, (byte *)&tmp, sizeof(tmp), (byte *)&tmp);
+    zuc_init(&Global.ZUCstate, Global.ZUC_key, Global.ZUC_iv);
+    zuc_encrypt(&Global.ZUCstate, (byte *)&tmp, sizeof(tmp), (byte *)&tmp);
 
     // 发送人物数据(char*)
     ret = send(Global.sock_s, (char *)&tmp, sizeof(tmp), 0);

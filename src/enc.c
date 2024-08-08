@@ -1,6 +1,6 @@
 #include "enc.h"
 
-void zucKeyVi(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_IV_SIZE])
+void zucKeyIv(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_IV_SIZE])
 {
     // 初始化key和iv
     for (int i = 0; i < ZUC_KEY_SIZE; i++)
@@ -10,25 +10,25 @@ void zucKeyVi(uint8_t key[ZUC_KEY_SIZE], uint8_t iv[ZUC_IV_SIZE])
     }
 }
 
-bool zucEnc(const byte *in, byte *out, size_t size, ZUC_STATE *state)
-{
-    // 检测数据是否为空
-    if (in == NULL || out == NULL && state == NULL)
-        return false;
+// bool zucEnc(const byte *in, byte *out, size_t size, ZUC_STATE *state)
+// {
+//     // 检测数据是否为空
+//     if (in == NULL || out == NULL && state == NULL)
+//         return false;
 
-    // 生成密钥流
-    size_t k_n = TO32(size) / sizeof(ZUC_UINT32);
-    ZUC_UINT32 *k = malloc(k_n * sizeof(ZUC_UINT32));
-    zuc_generate_keystream(state, k_n, k);
+//     // 生成密钥流
+//     size_t k_n = TO32(size) / sizeof(ZUC_UINT32);
+//     ZUC_UINT32 *k = malloc(k_n * sizeof(ZUC_UINT32));
+//     zuc_generate_keystream(state, k_n, k);
 
-    // 加密数据
-    for (int i = 0; i < k_n; i++)
-        ((ZUC_UINT32 *)out)[i] = ((ZUC_UINT32 *)in)[i] ^ k[i];
+//     // 加密数据
+//     for (int i = 0; i < k_n; i++)
+//         ((ZUC_UINT32 *)out)[i] = ((ZUC_UINT32 *)in)[i] ^ k[i];
 
-    // 释放资源
-    free(k);
-    return true;
-}
+//     // 释放资源
+//     free(k);
+//     return true;
+// }
 
 void sm2_public_key_info_to_pem_data(const SM2_KEY *key, data **out)
 {

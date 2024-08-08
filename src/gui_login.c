@@ -300,6 +300,7 @@ unsigned int gui_login()
                 strlen(name.textIn) > 0 && strlen(name.textIn) < USER_LEN &&
                 getThread() == false)
             {
+                gmAdd(&msg, "登陆中...", guiMsgEnum_Success);
                 // 登陆
                 setThread(true);
 
@@ -319,6 +320,8 @@ unsigned int gui_login()
                 strlen(name.textIn) > 0 && strlen(name.textIn) < USER_LEN &&
                 getThread() == false)
             {
+                gmAdd(&msg, "注册中...", guiMsgEnum_Success);
+
                 // 注册
                 setThread(true);
 
@@ -414,29 +417,19 @@ static void *login(void *arg)
     free(arg);
 
     int ret;
-    uint8_t key[ZUC_KEY_SIZE] = {0};
-    uint8_t iv[ZUC_KEY_SIZE] = {0};
 
     // 获取用户信息
-    ret = userGet(USER_CONFIG, name, &Global.SM2user, key, iv);
+    ret = userGet(USER_CONFIG, name, &Global.SM2user, Global.ZUC_key, Global.ZUC_iv);
     if (ret == false)
         gmAdd(msg, "未在检测到该用户", guiMsgEnum_Error);
     CHECK(ret == true, "未在检测到该用户");
 
     // 计算出ZUC密钥
-    zuc_init(&Global.ZUCstate, key, iv);
+    zuc_init(&Global.ZUCstate, Global.ZUC_key, Global.ZUC_iv);
 
     // 与在服务端登陆
     ret = loginUser(name, &Global.SM2server, &Global.SM2user);
     CHECK(ret == 0, "登陆失败\n");
-    
-    {
-        // test
-        personal p = {0};
-        p.vector = Malloc(500);
-        strcpy(p.info.name, "TUTo");
-        uploadFaceInfo(&p);
-    }
 
     // 成功登陆
     *quit = 0;                 // 设置界面退出
@@ -475,7 +468,7 @@ static void *reg(void *arg)
     CHECK(ret == 0);
 
     // 随机生成ZUC密钥和初始化向量
-    zucKeyVi(key, iv);
+    zucKeyIv(key, iv);
 
     // 写入配置文件
     ret = userAdd(USER_CONFIG, name, &SM2user, key, iv);

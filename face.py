@@ -96,10 +96,10 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
         x_cipher    = encryptor.encrypt(x_plain)
         
         # 将数据序列化为字节
-        with open("tmp\\tmp", "wb") as vf:
+        with open("tmp", "wb") as vf:
             vf.close()
             x_cipher.save(vf.name)
-        f = open("tmp\\tmp", "rb")
+        f = open("tmp", "rb")
         x_cipher_bytes = f.read()
         f.close()
 
@@ -113,8 +113,8 @@ def read(s, mtcnn, resnet, encryptor, batch_encoder):
             
     s.sendall(struct.pack('Q', MSG_FACE_END))
     
-    if os.path.exists("tmp\\tmp"):
-        os.remove("tmp\\tmp")
+    if os.path.exists("tmp"):
+        os.remove("tmp")
 
 def main():    
     # 创建一个MTCNN对象，用于人脸检测
@@ -124,11 +124,17 @@ def main():
     resnet = InceptionResnetV1(pretrained='vggface2').eval()
     
     # 初始化BGV
+    # parms = EncryptionParameters (scheme_type.bgv)
+    # poly_modulus_degree = 8192
+    # parms.set_poly_modulus_degree(poly_modulus_degree)
+    # parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree))
+    # parms.set_plain_modulus(PlainModulus.Batching(poly_modulus_degree, 20))
+    # context = SEALContext(parms)
     parms = EncryptionParameters (scheme_type.bgv)
-    poly_modulus_degree = 8192
+    poly_modulus_degree = 2048
     parms.set_poly_modulus_degree(poly_modulus_degree)
     parms.set_coeff_modulus(CoeffModulus.BFVDefault(poly_modulus_degree))
-    parms.set_plain_modulus(PlainModulus.Batching(poly_modulus_degree, 20))
+    parms.set_plain_modulus(PlainModulus.Batching(poly_modulus_degree, 40))
     context = SEALContext(parms)
     
     # 读取公钥
