@@ -1,9 +1,9 @@
 #include "gui_play.h"
 
 static const SDL_Color figureLiveColorFD = {0, 255, 0, 255};    // 人物存在的字体颜色
-static const SDL_Color figureLiveColorBG = {128, 128, 255, 64}; // 人物存在的背景颜色
+static const SDL_Color figureLiveColorBG = {128, 128, 255, 92}; // 人物存在的背景颜色
 static const SDL_Color figureDeadColorFD = {255, 0, 0, 255};    // 人物不存在的字体颜色
-static const SDL_Color figureDeadColorBG = {128, 0, 0, 64};     // 人物不存在的背景颜色
+static const SDL_Color figureDeadColorBG = {128, 0, 0, 92};     // 人物不存在的背景颜色
 
 #define GUI_PLAY_BUTTON_RUN_SELECT_TIME 100 // 按钮选中动画时间
 #define GUI_PLAY_BUTTON_RUN_LEAVE_TIME 100  // 按钮离开动画时间
@@ -763,7 +763,7 @@ void renderUserData(personal *p, SDL_Renderer *renderer)
         SDL_RenderCopy(renderer, texture, NULL, NULL);
         SDL_SetRenderTarget(renderer, NULL);
 
-        p->infoRect = (SDL_FRect){p->rect.x + p->rect.w + 20, p->rect.y, (float)surface->w, (float)surface->h};
+        p->infoRect = (SDL_FRect){p->rect.x + p->rect.w + 20, p->rect.y, (float)((float)p->rect.w * 2.5f), (float)((float)p->rect.w * 2.5f * (float)surface->h / (float)surface->w)};
 
         // 释放空间
         SDL_DestroyTexture(texture);
@@ -785,7 +785,7 @@ void renderUserData(personal *p, SDL_Renderer *renderer)
         SDL_RenderCopy(renderer, texture, NULL, NULL);
         SDL_SetRenderTarget(renderer, NULL);
 
-        p->infoRect = (SDL_FRect){p->rect.x + p->rect.w + 20, p->rect.y, (float)surface->w, (float)surface->h};
+        p->infoRect = (SDL_FRect){p->rect.x + p->rect.w + 20, p->rect.y,  (float)((float)p->rect.w * 1.2f), (float)((float)p->rect.w * 1.2f * (float)surface->h / (float)surface->w)};
 
         // 释放空间
         SDL_DestroyTexture(texture);

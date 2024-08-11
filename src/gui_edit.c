@@ -171,10 +171,10 @@ int guiEdit(SDL_Renderer *renderer, SDL_Surface *backSurface, guiMsg *msg, perso
             gmRender(msg);
             SDL_RenderPresent(renderer);
 
-            int all = i;
+            int all = (int)(i * 2.0f / 3.0f);
             int now = SDL_GetTicks() - time;
-            if(now<all)
-            SDL_Delay(all - now);
+            if (now < all)
+                SDL_Delay(all - now);
         }
 
         SDL_DestroyTexture(Texture);
@@ -281,11 +281,11 @@ int guiEdit(SDL_Renderer *renderer, SDL_Surface *backSurface, guiMsg *msg, perso
             SDL_RenderCopy(renderer, Texture, NULL, NULL);
             gmRender(msg);
             SDL_RenderPresent(renderer);
-            
-            int all = i;
+
+            int all = (int)(i * 2.0f / 3.0f);
             int now = SDL_GetTicks() - time;
-            if(now<all)
-            SDL_Delay(all - now);
+            if (now < all)
+                SDL_Delay(all - now);
         }
 
         SDL_DestroyTexture(Texture);
