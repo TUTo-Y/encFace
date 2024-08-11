@@ -435,8 +435,6 @@ static void *login(void *arg)
     *quit = 0;                 // 设置界面退出
     *loginRet = LOGIN_SUCCESS; // 设置登陆结果
 
-    gmAdd(msg, "登陆成功", guiMsgEnum_Success);
-
     setThread(false);
     return NULL;
 

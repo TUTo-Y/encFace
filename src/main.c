@@ -6,13 +6,8 @@ DEB(int test(int argc, char **argv));
 #if 1
 int main(int argc, char *argv[])
 {
-    DEB(
-        if (argc > 1) {
-            return test(argc, argv);
-        })
-
     int ret;
-    
+
     /************* 初始化设置 *************/
     srand(time(NULL));
 

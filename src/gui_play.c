@@ -631,6 +631,8 @@ void gui_play()
            -1,
            renderer);
 
+    gmAdd(&msg, "登陆成功", guiMsgEnum_Success);
+
     // guiPlay
     guiPlay gp = {0};
     gpInit(&gp, &figure, &msg, renderer);
