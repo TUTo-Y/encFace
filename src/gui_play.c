@@ -16,6 +16,7 @@ static const SDL_Color figureDeadColorBG = {128, 0, 0, 92};     // 人物不存�
 void getFaceThread(faceThreadParam *param);
 
 /** \brief 选择图片文件 */
+#ifdef _LINUX // LINUX
 static void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
     if (response_id == GTK_RESPONSE_ACCEPT)
@@ -66,6 +67,42 @@ bool selectImageFile(char *path, size_t size)
 
     return *path != '\0';
 }
+#else // WINDOWS
+bool selectImageFile(char *path, size_t size)
+{
+    if (path == NULL || size == 0)
+    {
+        return false;
+    }
+    *path = '\0';
+
+    OPENFILENAME ofn;
+    char szFile[PATH_MAX] = {0};
+
+    // 初始化OPENFILENAME结构
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+    ofn.lpstrFilter = "图片文件\0*.BMP;*.GIF;*.JPG;*.JPEG;*.LBM;*.PCX;*.PNG;*.PNM;*.SVG;*.TGA;*.TIFF;*.WEBP;*.XCF;*.XPM;*.XV\0";
+    ofn.nFilterIndex = 1;
+    ofn.lpstrFileTitle = NULL;
+    ofn.nMaxFileTitle = 0;
+    ofn.lpstrInitialDir = NULL;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+    // 显示打开文件对话框
+    if (GetOpenFileName(&ofn) == TRUE)
+    {
+        strncpy(path, ofn.lpstrFile, size - 1);
+        path[size - 1] = '\0'; // 确保字符串以空字符结尾
+        return true;
+    }
+
+    return false;
+}
+#endif
 
 /** \brief 绘制按钮 */
 static void gpRenderButtonDraw(guiPlay *gp, SDL_Texture *texture, float r)

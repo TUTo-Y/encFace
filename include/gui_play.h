@@ -7,7 +7,12 @@
 #include <pthread.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#ifdef _LINUX
 #include <gtk-3.0/gtk/gtk.h>
+#else
+#include <windows.h>
+#include <commdlg.h>
+#endif
 
 #include "th.h"
 #include "web.h"

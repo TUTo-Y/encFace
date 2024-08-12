@@ -10,20 +10,32 @@ OBJECT	=	$(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCE))
 HANDLE	=	$(wildcard $(INCDIR)/*.h)
 CFLAGS  =  -I$(INCDIR) -I$(eINCDIR) -L$(eLIBDIR)
 CFLAGS  += -lSDL2 -lSDL2main -lSDL2_image -lSDL2_ttf -lgmssl -lm
-CFLAGS  += `pkg-config --cflags gtk+-3.0` `pkg-config --libs gtk+-3.0`
 CFLAGS  += -D_DEBUG
-TARGET	=	encFace
+# 检查操作系统类型
+ifeq ($(OS),Windows_NT) # Windows环境
+    RM = del
+    MKDIR = mkdir
+    TARGET_EXT = .exe
+else # Linux环境
+    RM = rm -f
+    MKDIR = mkdir -p
+    TARGET_EXT =
 
-$(TARGET):$(OBJECT)
-	$(CC) -o $@ $^ $(CFLAGS)
+	CFLAGS  += -D_LINUX
+	CFLAGS  += `pkg-config --cflags gtk+-3.0` `pkg-config --libs gtk+-3.0`
+endif
+TARGET  = encFace$(TARGET_EXT)
 
-$(OBJDIR)/%.o:$(SRCDIR)/%.c $(HANDLE) | $(OBJDIR)
-	$(CC) -c -o $@ $< $(CFLAGS)
+$(TARGET): $(OBJECT)
+    $(CC) -o $@ $^ $(CFLAGS)
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.c $(HANDLE) | $(OBJDIR)
+    $(CC) -c -o $@ $< $(CFLAGS)
 
 $(OBJDIR):
-	mkdir -p $(OBJDIR)
+    $(MKDIR) $(OBJDIR)
 
 .PHONY: clean
 clean:
-	if [ -d "$(OBJDIR)" ]; then rm $(OBJDIR)/*.o; fi
-	if [ -f "$(TARGET)" ]; then rm $(TARGET); fi
+    if [ -d "$(OBJDIR)" ]; then $(RM) $(OBJDIR)/*.o; fi
+    if [ -f "$(TARGET)" ]; then $(RM) $(TARGET); fi
