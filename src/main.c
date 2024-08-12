@@ -11,8 +11,14 @@ int main(int argc, char *argv[])
     /************* 初始化设置 *************/
     srand(time(NULL));
 
-    // 初始化gtk
+// 初始化gtk
+#ifdef _LINUX
     gtk_init(&argc, &argv);
+#else
+    WSADATA wsaData;
+    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    CHECK(iResult == 0, "WSAStartup failed: %d\n", iResult);
+#endif
 
     // 设置调试控制台支持中文字符
     setlocale(LC_ALL, "zh_CN.UTF-8");
@@ -68,6 +74,10 @@ error:
 
     // 关闭与远程服务器的连接
     closeServer();
+
+#ifndef _LINUX
+    WSACleanup();
+#endif
 
     return 0;
 }

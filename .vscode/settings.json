@@ -32,6 +32,12 @@
         "__node_handle": "c",
         "gui_play.h": "c",
         "sdl_image.h": "c",
-        "gtk.h": "c"
+        "gtk.h": "c",
+        "in.h": "c",
+        "socket.h": "c",
+        "stdlib.h": "c",
+        "inet.h": "c",
+        "errno.h": "c",
+        "types.h": "c"
     }
 }

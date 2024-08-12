@@ -1,16 +1,31 @@
 #ifndef _WEB_H
 #define _WEB_H
 
-#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#ifdef _LINUX
+#include <fcntl.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <io.h>
+// 宏替换
+#define socket(af, type, protocol) WSASocket(af, type, protocol, NULL, 0, 0)
+#define bind(sock, addr, addrlen) bind(sock, addr, addrlen)
+#define listen(sock, backlog) listen(sock, backlog)
+#define accept(sock, addr, addrlen) accept(sock, addr, addrlen)
+#define recv(sock, buf, len, flags) recv(sock, buf, len, flags)
+#define send(sock, buf, len, flags) send(sock, buf, len, flags)
+#define close(sock) closesocket(sock)
+#endif
 
 #include "config.h"
 #include "enc.h"
